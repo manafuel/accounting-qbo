@@ -1,0 +1,6 @@
+# Local environment and DB artifacts
+.env
+tokens.db
+tokens.db-journal
+node_modules
+
