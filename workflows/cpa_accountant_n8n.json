@@ -1,0 +1,1392 @@
+{
+  "name": "CPA Accountant Agent (Multi-Channel)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cpa-agent/teams-in",
+        "responseMode": "onReceived",
+        "options": {
+          "responseCode": 200,
+          "responseData": "{\n  \"status\": \"ok\"\n}"
+        }
+      },
+      "id": "Webhook_Teams_In",
+      "name": "Teams Webhook (Incoming)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "number",
+        "value1": "={{$json.amount}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "larger",
+              "value2": 500
+            }
+          ]
+        }
+      },
+      "id": "IF_Att_Threshold",
+      "name": "IF: > $500? (Att)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.attachmentKey}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "regex",
+              "value2": ".+"
+            }
+          ]
+        }
+      },
+      "id": "IF_Attach_Route",
+      "name": "IF: Attachment Route?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        180
+      ]
+    },
+    
+    {
+      "parameters": {
+        "triggerOnStart": false,
+        "downloadAttachments": true,
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "Email_IMAP_In",
+      "name": "Email Trigger (IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        40
+      ],
+      "credentials": {
+        "imap": {
+          "id": "REPLACE_WITH_IMAP_CREDENTIAL_ID",
+          "name": "IMAP (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "property": "binary"
+      },
+      "id": "Merge_Channels",
+      "name": "Merge Inputs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        -90,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.body || $json.text || $json.message || $json.plainText || $json.subject}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "contains",
+              "value2": "report"
+            },
+            {
+              "operation": "contains",
+              "value2": "summary"
+            },
+            {
+              "operation": "contains",
+              "value2": "show"
+            },
+            {
+              "operation": "contains",
+              "value2": "how much"
+            },
+            {
+              "operation": "contains",
+              "value2": "what is"
+            },
+            {
+              "operation": "contains",
+              "value2": "question"
+            }
+          ]
+        }
+      },
+      "id": "IF_Query",
+      "name": "IF: Query vs Expense",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize input from Teams or Email\n// Extract basic text and collect attachments if present\nconst items = [];\nfor (const item of itemsInput) {\n  const source = item.json.headers?.['user-agent'] ? 'teams' : (item.json.from || item.json.to ? 'email' : 'unknown');\n  const text = item.json.body || item.json.text || item.json.message || item.json.plainText || item.json.subject || '';\n  const attachments = [];\n  if (item.binary) {\n    for (const [key, bin] of Object.entries(item.binary)) {\n      attachments.push({ key, mimeType: bin.mimeType, fileName: bin.fileName });\n    }\n  }\n  items.push({ json: { source, text, subject: item.json.subject, from: item.json.from, to: item.json.to, date: item.json.date, attachmentsPresent: attachments.length > 0, attachments }, binary: item.binary });\n}\nreturn items;"
+      },
+      "id": "Fn_Normalize",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        -90,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "boolean",
+        "value1": "={{$json.attachmentsPresent === true}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "IF_Attachments",
+      "name": "IF: Attachments Present?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        140,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Split each incoming item into multiple items, one per attachment.\n// If none, pass a single item with attachmentKey = null.\nconst out = [];\nfor (const item of itemsInput) {\n  const attachments = item.json.attachments || [];\n  if (!attachments.length) {\n    out.push(item);\n    continue;\n  }\n  for (const att of attachments) {\n    const clone = { json: { ...item.json, attachmentKey: att.key, attachmentName: att.fileName, attachmentMime: att.mimeType }, binary: item.binary ? { ...item.binary } : undefined };\n    out.push(clone);\n  }\n}\nreturn out;"
+      },
+      "id": "Fn_Split_Attachments",
+      "name": "Split Attachments",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        380,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Keep only the selected attachment's binary under 'file' key\nconst out = [];\nfor (const item of itemsInput) {\n  const key = item.json.attachmentKey;\n  if (!key || !item.binary || !item.binary[key]) {\n    out.push(item);\n    continue;\n  }\n  const b = item.binary[key];\n  out.push({ json: item.json, binary: { file: b } });\n}\nreturn out;"
+      },
+      "id": "Fn_Isolate_Attachment",
+      "name": "Isolate Attachment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        620,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Build OpenAI Vision payload using base64 inline data URL\n// Expects single attachment under binary.file\nconst items = [];\nfor (const item of itemsInput) {\n  const bin = item.binary?.file;\n  const dataUrl = bin ? `data:${bin.mimeType};base64,${bin.data}` : null;\n  const sys = `You are a CPA accounting extraction agent.\nExtract JSON with keys: business, vendor, date, amount, currency, paymentMethod, categoryHint, notes, needsReview (boolean), reason, confidence (0-1).\nBusinesses: CedarGate Farm, MANAfuel, Consulting. Infer business. If ambiguous, set needsReview=true with reason.`;\n  const userContent = [];\n  userContent.push({ type: 'text', text: `Text hint: ${item.json.text || ''}\nSender: ${item.json.from || ''}` });\n  if (dataUrl) userContent.push({ type: 'image_url', image_url: { url: dataUrl } });\n  const body = {\n    model: 'gpt-4o-mini',\n    temperature: 0.1,\n    response_format: { type: 'json_object' },\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: userContent }\n    ]\n  };\n  items.push({ json: { body }, binary: item.binary });\n}\nreturn items;"
+      },
+      "id": "Fn_Build_Vision_Body",
+      "name": "Build Vision Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        860,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "requestMethod": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "jsonParameters": true,
+        "options": {},
+        "sendBinaryData": false,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParametersJson": "={{$json.body}}"
+      },
+      "id": "HTTP_OpenAI_Vision",
+      "name": "AI: OCR+Extract (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1100,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse OpenAI response to plain JSON fields\nconst out = [];\nfor (const item of itemsInput) {\n  let data = {};\n  try {\n    const content = item.json.choices?.[0]?.message?.content || item.json.data || item.json.body || '';\n    data = typeof content === 'string' ? JSON.parse(content) : content;\n  } catch (e) { data = {}; }\n  out.push({ json: { ...item.json, ...data, attachmentsPresent: !!item.binary?.file }, binary: item.binary });\n}\nreturn out;"
+      },
+      "id": "Fn_Parse_Vision",
+      "name": "Parse Vision Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        1330,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "companyInfo",
+        "operation": "query",
+        "query": "SELECT Id FROM Purchase WHERE TotalAmt = {{$json.amount}} AND TxnDate = '{{$json.date}}' AND PrivateNote LIKE '%{{$json.vendor}}%'"
+      },
+      "id": "QB_Dupe_Check_Attach",
+      "name": "QuickBooks: Dupe Check (Att)",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        30
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "number",
+        "value1": "={{$json.QueryResponse?.Purchase?.length || 0}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "IF_DupeFound_Attach",
+      "name": "IF: Duplicate Found? (Att)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "purchase",
+        "operation": "create",
+        "paymentType": "Cash",
+        "additionalFields": {
+          "TxnDate": "={{$json.date}}",
+          "PrivateNote": "={{$json.vendor}} | {{$json.notes}}"
+        },
+        "lineItemsUi": {
+          "lineItemValues": [
+            {
+              "Amount": "={{$json.amount}}",
+              "DetailType": "AccountBasedExpenseLineDetail",
+              "AccountBasedExpenseLineDetail": {
+                "AccountRefName": "={{$json.account}}"
+              },
+              "Description": "={{$json.vendor}}"
+            }
+          ]
+        },
+        "entity": "={{$json.vendor}}",
+        "transactionAmount": "={{$json.amount}}"
+      },
+      "id": "QB_Create_Purchase_Attach",
+      "name": "QuickBooks: Create Purchase (Att)",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        30
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "systemMessage": "You are a CPA accounting extraction agent.\nTask: Given email or chat text and optional binary attachments (receipts, invoices, statements), extract a single JSON object with keys: business, vendor, date, amount, currency, paymentMethod, categoryHint, notes, needsReview (boolean), reason, confidence (0-1).\nIf no attachment is present and text appears to be a question, set needsReview=true and reason='appears to be a question'.\nOnly output valid minified JSON.\nBusinesses: CedarGate Farm, MANAfuel, Consulting. Infer business if possible from text or sender.\n",
+        "messages": {
+          "message": [
+            {
+              "text": "Text: {{$json.text}}\nAttachments: {{$json.attachmentsPresent ? $json.attachments.map(a => a.fileName).join(', ') : 'none'}}\nSender: {{$json.from || 'unknown'}}\n",
+              "type": "user"
+            }
+          ]
+        },
+        "responseFormat": "json"
+      },
+      "id": "AI_Parse",
+      "name": "AI: Parse & Extract",
+      "type": "n8n-nodes-base.openAiChat",
+      "typeVersion": 1,
+      "position": [
+        360,
+        110
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// CoA mapping and business routing\n// Expect AI output in the field data\nconst out = [];\nconst maps = {\n  'CedarGate Farm': {\n    fuel: 'Fuel',\n    feed: 'Feed',\n    seed: 'Seeds & Plants',\n    equipment: 'Farm Equipment',\n    repairs: 'Repairs & Maintenance',\n    utilities: 'Utilities',\n    advertising: 'Advertising',\n    supplies: 'Farm Supplies',\n    labor: 'Hired Labor',\n  },\n  'MANAfuel': {\n    hosting: 'Hosting',\n    servers: 'Servers & Hardware',\n    bandwidth: 'Bandwidth',\n    advertising: 'Advertising',\n    software: 'Software Subscriptions',\n    utilities: 'Utilities',\n  },\n  'Consulting': {\n    travel: 'Travel',\n    meals: 'Meals (50%)',\n    advertising: 'Advertising',\n    software: 'Software Subscriptions',\n    professional: 'Professional Services',\n    homeOffice: 'Home Office',\n  }\n};\n\nfor (const item of itemsInput) {\n  const parsed = item.json;\n  let data;\n  try {\n    data = typeof parsed.data === 'string' ? JSON.parse(parsed.data) : (parsed.data || JSON.parse(parsed.response || '{}'));\n  } catch (e) {\n    data = {};\n  }\n\n  const business = data.business || 'Unspecified';\n  const vendor = data.vendor || 'Unknown Vendor';\n  const date = data.date || new Date().toISOString().slice(0,10);\n  const amount = Number(data.amount || 0);\n  const currency = data.currency || 'USD';\n  const notes = data.notes || '';\n  const needsReview = !!data.needsReview || amount > 500;\n  const reason = needsReview ? (data.reason || (amount > 500 ? 'Amount exceeds review threshold' : 'Uncertain extraction')) : '';\n  const categoryHint = (data.categoryHint || '').toLowerCase();\n\n  const map = maps[business] || {};\n  let account = map[categoryHint] || null;\n  if (!account) {\n    // simple keyword fallback\n    const kw = categoryHint || notes.toLowerCase();\n    if (kw.includes('fuel') || kw.includes('gas')) account = map['fuel'] || 'Fuel';\n    else if (kw.includes('advert')) account = map['advertising'] || 'Advertising';\n    else if (kw.includes('server') || kw.includes('hosting')) account = map['hosting'] || 'Hosting';\n    else if (kw.includes('meal')) account = map['meals'] || map['Meals (50%)'] || 'Meals';\n    else if (kw.includes('software') || kw.includes('subscription')) account = map['software'] || 'Software';\n    else if (kw.includes('repair')) account = map['repairs'] || 'Repairs & Maintenance';\n    else if (kw.includes('equip')) account = map['equipment'] || 'Equipment';\n    else account = 'Uncategorized';\n  }\n\n  out.push({ json: { business, vendor, date, amount, currency, notes, account, needsReview, reason, confidence: data.confidence ?? 0.6, attachmentsPresent: item.json.attachmentsPresent }, binary: item.binary });\n}\nreturn out;"
+      },
+      "id": "Fn_Map_CoA",
+      "name": "Map to Chart of Accounts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        610,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "number",
+        "value1": "={{$json.amount}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "larger",
+              "value2": 500
+            }
+          ]
+        }
+      },
+      "id": "IF_Threshold",
+      "name": "IF: > $500?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        860,
+        110
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "companyInfo",
+        "operation": "query",
+        "query": "SELECT Id FROM Purchase WHERE TotalAmt = {{$json.amount}} AND TxnDate = '{{$json.date}}' AND PrivateNote LIKE '%{{$json.vendor}}%'"
+      },
+      "id": "QB_Dupe_Check",
+      "name": "QuickBooks: Dupe Check",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        -60
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "boolean",
+        "value1": "={{$json.needsReview === true}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "IF_Review",
+      "name": "IF: Needs Review?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "purchase",
+        "operation": "create",
+        "paymentType": "Cash",
+        "additionalFields": {
+          "TxnDate": "={{$json.date}}",
+          "PrivateNote": "={{$json.vendor}} | {{$json.notes}}"
+        },
+        "lineItemsUi": {
+          "lineItemValues": [
+            {
+              "Amount": "={{$json.amount}}",
+              "DetailType": "AccountBasedExpenseLineDetail",
+              "AccountBasedExpenseLineDetail": {
+                "AccountRefName": "={{$json.account}}"
+              },
+              "Description": "={{$json.vendor}}"
+            }
+          ]
+        },
+        "entity": "={{$json.vendor}}",
+        "transactionAmount": "={{$json.amount}}"
+      },
+      "id": "QB_Create_Purchase",
+      "name": "QuickBooks: Create Purchase",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        1390,
+        -60
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "attachable",
+        "operation": "create",
+        "entityType": "Purchase",
+        "entityId": "={{$json.Id || $json.Purchase?.Id}}",
+        "additionalFields": {}
+      },
+      "id": "QB_Attach",
+      "name": "QuickBooks: Attach Source",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        1910,
+        -60
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "Merge_For_Attach",
+      "name": "Merge for Attach",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1710,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "number",
+        "value1": "={{$json.QueryResponse?.Purchase?.length || 0}}",
+        "rules": {
+          "rules": [
+            {
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "IF_DupeFound",
+      "name": "IF: Duplicate Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "teamId": "REPLACE_WITH_TEAM_ID",
+        "channelId": "REPLACE_WITH_CHANNEL_ID",
+        "messageType": "text",
+        "text": "⛔ Duplicate skipped for {{$json.vendor}} on {{$json.date}} (${{$json.amount}})."
+      },
+      "id": "Teams_Notify_Dupe",
+      "name": "Teams: Duplicate Skipped",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        1510,
+        -240
+      ],
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "REPLACE_WITH_TEAMS_CREDENTIAL_ID",
+          "name": "Microsoft Teams (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "purchase",
+        "operation": "create",
+        "paymentType": "Cash",
+        "additionalFields": {
+          "TxnDate": "={{$json.date}}",
+          "PrivateNote": "={{$json.vendor}} | {{$json.notes}}"
+        },
+        "lineItemsUi": {
+          "lineItemValues": [
+            {
+              "Amount": "={{$json.amount}}",
+              "DetailType": "AccountBasedExpenseLineDetail",
+              "AccountBasedExpenseLineDetail": {
+                "AccountRefName": "={{$json.account}}"
+              },
+              "Description": "={{$json.vendor}}"
+            }
+          ]
+        },
+        "entity": "={{$json.vendor}}",
+        "transactionAmount": "={{$json.amount}}"
+      },
+      "id": "QB_Create_Purchase_NoAtt",
+      "name": "QuickBooks: Create Purchase (NoAtt)",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        -60
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "CPA Agent <no-reply@yourdomain.com>",
+        "toEmail": "={{$json.from || 'you@yourdomain.com'}}",
+        "subject": "Duplicate Skipped: {{$json.vendor}} - {{$json.amount}}",
+        "text": "A potential duplicate was detected and skipped for {{$json.vendor}} on {{$json.date}} totaling ${{$json.amount}}."
+      },
+      "id": "Email_Notify_Dupe",
+      "name": "Email: Duplicate Skipped",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1710,
+        -240
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "teamId": "REPLACE_WITH_TEAM_ID",
+        "channelId": "REPLACE_WITH_CHANNEL_ID",
+        "messageType": "text",
+        "text": "✅ Recorded purchase for {{$json.vendor}} on {{$json.date}}: ${{$json.amount}} ({{$json.account}})."
+      },
+      "id": "Teams_Notify_Success",
+      "name": "Teams: Notify Success",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        1910,
+        -60
+      ],
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "REPLACE_WITH_TEAMS_CREDENTIAL_ID",
+          "name": "Microsoft Teams (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "CPA Agent <no-reply@yourdomain.com>",
+        "toEmail": "={{$json.from || 'you@yourdomain.com'}}",
+        "subject": "Recorded: {{$json.vendor}} - {{$json.amount}}",
+        "text": "Recorded in QuickBooks: {{$json.vendor}} on {{$json.date}} for ${{$json.amount}} ({{$json.account}})."
+      },
+      "id": "Email_Notify_Success",
+      "name": "Email: Notify Success",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1910,
+        120
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "teamId": "REPLACE_WITH_TEAM_ID",
+        "channelId": "REPLACE_WITH_CHANNEL_ID",
+        "messageType": "text",
+        "text": "⚠️ Review needed for {{$json.vendor}} on {{$json.date}} (${{$json.amount}}). Reason: {{$json.reason}}."
+      },
+      "id": "Teams_Notify_Review",
+      "name": "Teams: Needs Review",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        1390,
+        340
+      ],
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "REPLACE_WITH_TEAMS_CREDENTIAL_ID",
+          "name": "Microsoft Teams (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "CPA Agent <no-reply@yourdomain.com>",
+        "toEmail": "={{$json.from || 'you@yourdomain.com'}}",
+        "subject": "Review requested: {{$json.vendor}} - {{$json.amount}}",
+        "text": "This transaction was flagged for review. Reason: {{$json.reason}}.\nReply 'approve' to post to QuickBooks."
+      },
+      "id": "Email_Notify_Review",
+      "name": "Email: Needs Review",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1390,
+        520
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "systemMessage": "You are a licensed-CPA-style virtual accountant. Answer user tax/accounting questions with concise, authoritative guidance for US federal and New Jersey. Always cite sources with inline links to the exact source used. Sources to prioritize: IRS Publication 225 (Farmer’s Tax Guide), IRS Schedule F (Form 1040) instructions, IRS Small Business Deduction guidance, New Jersey Division of Taxation, NJ Department of Agriculture, Rutgers Cooperative Extension (Farm Mgmt & Tax fact sheets). If unsure, request clarification. Do not give legal advice; provide general guidance with citations.",
+        "messages": {
+          "message": [
+            {
+              "text": "{{$json.text}}",
+              "type": "user"
+            }
+          ]
+        }
+      },
+      "id": "AI_QA",
+      "name": "AI: CPA Q&A (Cited)",
+      "type": "n8n-nodes-base.openAiChat",
+      "typeVersion": 1,
+      "position": [
+        360,
+        -260
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "teamId": "REPLACE_WITH_TEAM_ID",
+        "channelId": "REPLACE_WITH_CHANNEL_ID",
+        "messageType": "text",
+        "text": "{{$json.choices[0].message.content}}"
+      },
+      "id": "Teams_QA_Reply",
+      "name": "Teams: Reply to Q&A",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        610,
+        -260
+      ],
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "REPLACE_WITH_TEAMS_CREDENTIAL_ID",
+          "name": "Microsoft Teams (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "CPA Agent <no-reply@yourdomain.com>",
+        "toEmail": "={{$json.from || 'you@yourdomain.com'}}",
+        "subject": "Your Answer (CPA Agent)",
+        "text": "{{$json.choices[0].message.content}}"
+      },
+      "id": "Email_QA_Reply",
+      "name": "Email: Reply to Q&A",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        610,
+        -80
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyWeek",
+              "hour": 13,
+              "weekday": "6"
+            }
+          ]
+        }
+      },
+      "id": "Cron_Weekly",
+      "name": "Cron: Weekly Report",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compute date range for last 7 days\nconst end = new Date();\nconst start = new Date(Date.now() - 7*24*60*60*1000);\nconst fmt = d => d.toISOString().slice(0,10);\nreturn [{ json: { start: fmt(start), end: fmt(end) }}];"
+      },
+      "id": "Fn_Range",
+      "name": "Date Range (7 days)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "companyInfo",
+        "operation": "query",
+        "query": "SELECT Id, TxnDate, TotalAmt, PrivateNote FROM Purchase WHERE TxnDate >= '{{$json.start}}' AND TxnDate <= '{{$json.end}}'"
+      },
+      "id": "QB_Query_7d",
+      "name": "QuickBooks: Purchases (7d)",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [
+        120,
+        380
+      ],
+      "credentials": {
+        "quickbooksOnlineOAuth2Api": {
+          "id": "REPLACE_WITH_QUICKBOOKS_CREDENTIAL_ID",
+          "name": "QuickBooks Online (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Summarize by inferred business from PrivateNote (prefix vendor | notes)\nconst rows = items[0].json.QueryResponse?.Purchase || [];\nconst sum = { 'CedarGate Farm': 0, 'MANAfuel': 0, 'Consulting': 0, 'Unspecified': 0 };\nfor (const r of rows) {\n  const note = (r.PrivateNote || '').toLowerCase();\n  let b = 'Unspecified';\n  if (note.includes('cedargate') || note.includes('farm')) b = 'CedarGate Farm';\n  else if (note.includes('manafuel') || note.includes('hosting')) b = 'MANAfuel';\n  else if (note.includes('consult')) b = 'Consulting';\n  sum[b] += Number(r.TotalAmt || 0);\n}\nreturn [{ json: { summary: sum, count: rows.length } }];"
+      },
+      "id": "Fn_Summarize",
+      "name": "Summarize by Business",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        360,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "value": "=Weekly Summary ({{$now}})\n\n- CedarGate Farm: ${{$json.summary['CedarGate Farm'].toFixed(2)}}\n- MANAfuel: ${{$json.summary['MANAfuel'].toFixed(2)}}\n- Consulting: ${{$json.summary['Consulting'].toFixed(2)}}\n- Unspecified: ${{$json.summary['Unspecified'].toFixed(2)}}\n\nEntries: {{$json.count}}\nFlagged/Unconfirmed: Use query: 'Show unconfirmed transactions'",
+        "options": {}
+      },
+      "id": "Set_Report_Text",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        610,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "teamId": "REPLACE_WITH_TEAM_ID",
+        "channelId": "REPLACE_WITH_CHANNEL_ID",
+        "messageType": "text",
+        "text": "={{$json.value}}"
+      },
+      "id": "Teams_Send_Report",
+      "name": "Teams: Send Weekly Report",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        860,
+        320
+      ],
+      "credentials": {
+        "microsoftTeamsOAuth2Api": {
+          "id": "REPLACE_WITH_TEAMS_CREDENTIAL_ID",
+          "name": "Microsoft Teams (CPA Agent)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "CPA Agent <no-reply@yourdomain.com>",
+        "toEmail": "you@yourdomain.com",
+        "subject": "Weekly Finance Summary",
+        "text": "={{$json.value}}"
+      },
+      "id": "Email_Send_Report",
+      "name": "Email: Send Weekly Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        860,
+        460
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP (CPA Agent)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Teams Webhook (Incoming)": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Merge Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Inputs": {
+      "main": [
+        [
+          {
+            "node": "IF: Query vs Expense",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Query vs Expense": {
+      "main": [
+        [
+          {
+            "node": "AI: CPA Q&A (Cited)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "IF: Attachments Present?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Attachments Present?": {
+      "main": [
+        [
+          {
+            "node": "Split Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI: Parse & Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Attachments": {
+      "main": [
+        [
+          {
+            "node": "Isolate Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Isolate Attachment": {
+      "main": [
+        [
+          {
+            "node": "Build Vision Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge for Attach",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Build Vision Payload": {
+      "main": [
+        [
+          {
+            "node": "AI: OCR+Extract (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: OCR+Extract (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Parse Vision Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Vision Result": {
+      "main": [
+        [
+          {
+            "node": "Map to Chart of Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI: Parse & Extract": {
+      "main": [
+        [
+          {
+            "node": "Map to Chart of Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map to Chart of Accounts": {
+      "main": [
+        [
+          {
+            "node": "IF: Attachment Route?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Attachment Route?": {
+      "main": [
+        [
+          {
+            "node": "IF: > $500? (Att)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: > $500?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Create Purchase (Att)": {
+      "main": [
+        [
+          {
+            "node": "Merge for Attach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: > $500? (Att)": {
+      "main": [
+        [
+          {
+            "node": "QuickBooks: Dupe Check (Att)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Needs Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Dupe Check (Att)": {
+      "main": [
+        [
+          {
+            "node": "IF: Duplicate Found? (Att)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Duplicate Found? (Att)": {
+      "main": [
+        [
+          {
+            "node": "Teams: Duplicate Skipped",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Duplicate Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QuickBooks: Create Purchase (Att)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: > $500?": {
+      "main": [
+        [
+          {
+            "node": "QuickBooks: Dupe Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF: Needs Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Dupe Check": {
+      "main": [
+        [
+          {
+            "node": "IF: Duplicate Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Duplicate Found?": {
+      "main": [
+        [
+          {
+            "node": "Teams: Duplicate Skipped",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Duplicate Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "QuickBooks: Create Purchase (NoAtt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Create Purchase": {
+      "main": [
+        [
+          {
+            "node": "Merge for Attach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Create Purchase (NoAtt)": {
+      "main": [
+        [
+          {
+            "node": "Teams: Notify Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge for Attach": {
+      "main": [
+        [
+          {
+            "node": "QuickBooks: Attach Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Attach Source": {
+      "main": [
+        [
+          {
+            "node": "Teams: Notify Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Needs Review?": {
+      "main": [
+        [
+          {
+            "node": "Teams: Needs Review",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "AI: CPA Q&A (Cited)": {
+      "main": [
+        [
+          {
+            "node": "Teams: Reply to Q&A",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Reply to Q&A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cron: Weekly Report": {
+      "main": [
+        [
+          {
+            "node": "Date Range (7 days)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date Range (7 days)": {
+      "main": [
+        [
+          {
+            "node": "QuickBooks: Purchases (7d)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QuickBooks: Purchases (7d)": {
+      "main": [
+        [
+          {
+            "node": "Summarize by Business",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize by Business": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Teams: Send Weekly Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email: Send Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/New_York"
+  },
+  "pinData": {},
+  "staticData": {},
+  "meta": {
+    "templateCreds": {
+      "openai": "OpenAI (CPA Agent)",
+      "imap": "IMAP (CPA Agent)",
+      "smtp": "SMTP (CPA Agent)",
+      "teams": "Microsoft Teams (CPA Agent)",
+      "quickbooks": "QuickBooks Online (CPA Agent)"
+    }
+  },
+  "version": 2
+}

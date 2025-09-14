@@ -1,0 +1,12 @@
+# Track only the workflow(s) and top-level docs
+
+# Ignore everything by default
+/*
+
+# Allow these
+!/.gitignore
+!/README.md
+!/workflows/
+
+# MacOS
+.DS_Store
