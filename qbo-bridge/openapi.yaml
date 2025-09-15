@@ -2,9 +2,12 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.2.0
+  version: 0.2.1
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
+  # First URL is a concrete example for GPT builder copy/paste.
+  - url: https://accounting-qbo.onrender.com
+  # Keep env-based URL for other tooling.
   - url: ${APP_BASE_URL}
 components:
   securitySchemes:
@@ -12,12 +15,14 @@ components:
       type: apiKey
       in: header
       name: X-Api-Key
+  schemas: {}
 security:
   - actionApiKey: []
 paths:
   /qbo/query:
     get:
       summary: Run a QuickBooks query
+      operationId: qboQuery
       parameters:
         - in: query
           name: realmId
@@ -36,6 +41,7 @@ paths:
   /qbo/purchase:
     post:
       summary: Create a Purchase transaction
+      operationId: createPurchase
       requestBody:
         required: true
         content:
@@ -87,6 +93,7 @@ paths:
   /qbo/attachment:
     post:
       summary: Upload an attachment and link to a Purchase
+      operationId: uploadAttachment
       requestBody:
         required: true
         content:
@@ -110,6 +117,7 @@ paths:
   /lookups/vendors:
     get:
       summary: List vendors (optionally filtered by name)
+      operationId: listVendors
       parameters:
         - in: query
           name: realmId
@@ -124,6 +132,7 @@ paths:
   /lookups/accounts:
     get:
       summary: List accounts (optionally filtered by name)
+      operationId: listAccounts
       parameters:
         - in: query
           name: realmId
@@ -138,6 +147,7 @@ paths:
   /lookups/customers:
     get:
       summary: List customers (optionally filtered by name)
+      operationId: listCustomers
       parameters:
         - in: query
           name: realmId
