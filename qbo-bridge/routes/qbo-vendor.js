@@ -7,6 +7,25 @@ import { getTokens, getLatestTokens } from '../lib/db.js';
 
 const router = express.Router();
 
+function normalizeBillAddr(addr) {
+  if (!addr || typeof addr !== 'object') return undefined;
+  const a = addr || {};
+  const pick = (k) => a[k] ?? a[k?.toLowerCase?.()] ?? a[k?.toUpperCase?.()];
+  const line1 = a.Line1 ?? a.line1 ?? a.address1 ?? a.Address1 ?? a.street ?? a.Street;
+  const city = a.City ?? a.city;
+  const state = a.CountrySubDivisionCode ?? a.countrySubdivisionCode ?? a.State ?? a.state ?? a.Province ?? a.province;
+  const postal = a.PostalCode ?? a.postalCode ?? a.Zip ?? a.zip;
+  const out = {
+    Line1: line1,
+    City: city,
+    CountrySubDivisionCode: state,
+    PostalCode: postal,
+  };
+  // Remove undefineds
+  Object.keys(out).forEach((k) => out[k] === undefined && delete out[k]);
+  return Object.keys(out).length ? out : undefined;
+}
+
 router.post('/', async (req, res, next) => {
   try {
     const parsed = vendorUpsertSchema.parse(req.body);
@@ -22,7 +41,7 @@ router.post('/', async (req, res, next) => {
       displayName: parsed.displayName,
       email: parsed.email,
       phone: parsed.phone,
-      billAddr: parsed.billAddr,
+      billAddr: normalizeBillAddr(parsed.billAddr),
     });
     res.json({ Vendor: { Id: v.id, DisplayName: v.displayName } });
   } catch (err) {
@@ -32,4 +51,3 @@ router.post('/', async (req, res, next) => {
 });
 
 export default router;
-

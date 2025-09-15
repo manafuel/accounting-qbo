@@ -131,14 +131,13 @@ export async function createVendor(realmId, v) {
   const token = await getAccessToken(realmId);
   const u = new URL(`${QBO_BASE}/${encodeURIComponent(realmId)}/vendor`);
   u.searchParams.set('minorversion', MINOR_VERSION);
+  // QBO expects the entity object directly for JSON payloads (no "Vendor" wrapper)
   const body = {
-    Vendor: {
-      DisplayName: v.displayName,
-      CompanyName: v.displayName,
-      PrimaryEmailAddr: v.email ? { Address: v.email } : undefined,
-      PrimaryPhone: v.phone ? { FreeFormNumber: v.phone } : undefined,
-      BillAddr: v.billAddr || undefined,
-    },
+    DisplayName: v.displayName,
+    CompanyName: v.displayName,
+    PrimaryEmailAddr: v.email ? { Address: v.email } : undefined,
+    PrimaryPhone: v.phone ? { FreeFormNumber: v.phone } : undefined,
+    BillAddr: v.billAddr || undefined,
   };
   const res = await safeFetch(u.toString(), {
     method: 'POST',
