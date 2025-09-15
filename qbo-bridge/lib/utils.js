@@ -103,6 +103,9 @@ export function errorHandler(err, req, res, next) {
         if (req?.path?.startsWith('/qbo/purchase')) {
           payload.hint = 'For Purchase: AccountRef must be a Bank or CreditCard account for the chosen paymentType; VendorRef and all Line expenseAccountRef IDs must exist; omit TaxCodeRef unless configured.';
         }
+        if (req?.path?.startsWith('/qbo/vendor')) {
+          payload.hint = 'For Vendor: DisplayName must not contain illegal characters (avoid colons and control characters); BillAddr keys should be Line1, City, CountrySubDivisionCode, PostalCode; email/phone map to PrimaryEmailAddr.Address and PrimaryPhone.FreeFormNumber.';
+        }
       } else if (typeof d === 'object') {
         // Fallback minimal details without leaking sensitive data
         const msg = d.message || d.error || d.summary || undefined;
