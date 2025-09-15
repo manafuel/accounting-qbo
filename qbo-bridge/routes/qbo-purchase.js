@@ -15,7 +15,7 @@ router.post('/', async (req, res, next) => {
   try {
     const parsed = purchaseSchema.parse(req.body);
     const row = getTokens(env.GPT_USER_ID);
-    const realmId = parsed.realmId || row?.realmId;
+    const realmId = (row?.realmId) || parsed.realmId;
     if (!realmId) {
       const e = new Error('realmId is required and no connected realm was found');
       // @ts-ignore

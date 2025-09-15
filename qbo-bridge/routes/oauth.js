@@ -2,6 +2,7 @@ import express from 'express';
 import { buildAuthUrl, exchangeCodeForTokens, persistInitialTokens } from '../lib/oauth.js';
 import { buildState, verifyState } from '../lib/utils.js';
 import { env } from '../lib/env.js';
+import { getTokens } from '../lib/db.js';
 
 const router = express.Router();
 
@@ -54,12 +55,14 @@ router.get('/callback', async (req, res, next) => {
             .card { max-width: 560px; padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; }
             h1 { margin-top: 0; }
             .muted { color: #6b7280; }
+            code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
           </style>
         </head>
         <body>
           <div class="card">
             <h1>QuickBooks Connected</h1>
             <p>Your QuickBooks Online account has been connected successfully.</p>
+            <p>Realm ID: <code>${String(realmId)}</code></p>
             <p class="muted">You can now return to ChatGPT and start using the actions.</p>
           </div>
         </body>
@@ -68,6 +71,14 @@ router.get('/callback', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Connection status helper
+router.get('/status', (req, res) => {
+  const row = getTokens(env.GPT_USER_ID);
+  if (!row) return res.json({ connected: false });
+  const now = Math.floor(Date.now() / 1000);
+  res.json({ connected: true, realmId: row.realmId, expires: row.expires, expiresInSec: row.expires - now });
 });
 
 export default router;

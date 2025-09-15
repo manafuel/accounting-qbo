@@ -12,7 +12,7 @@ router.get('/', async (req, res, next) => {
   try {
     const parsed = qpSchema.parse({ realmId: req.query.realmId, q: req.query.q });
     const row = getTokens(env.GPT_USER_ID);
-    const realmId = parsed.realmId || row?.realmId;
+    const realmId = (row?.realmId) || parsed.realmId;
     if (!realmId) {
       const err = new Error('realmId is required and no connected realm was found');
       // @ts-ignore
