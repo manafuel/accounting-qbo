@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.2.3
+  version: 0.2.4
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -16,6 +16,15 @@ components:
     QboResponse:
       type: object
       additionalProperties: true
+    ConnectionStatus:
+      type: object
+      properties:
+        connected: { type: boolean }
+        realmId: { type: string, nullable: true }
+        userId: { type: string, nullable: true }
+        expires: { type: integer, nullable: true, description: Epoch seconds }
+        expiresInSec: { type: integer, nullable: true }
+      required: [connected]
 security:
   - actionApiKey: []
 paths:
@@ -136,6 +145,7 @@ paths:
           name: name
           required: false
           schema: { type: string }
+          description: Optional filter; matches anywhere in DisplayName.
       responses:
         '200': { description: Vendors list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
   /lookups/accounts:
@@ -152,6 +162,7 @@ paths:
           name: name
           required: false
           schema: { type: string }
+          description: Optional filter; matches anywhere in Name.
       responses:
         '200': { description: Accounts list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
   /lookups/customers:
@@ -168,8 +179,23 @@ paths:
           name: name
           required: false
           schema: { type: string }
+          description: Optional filter; matches anywhere in DisplayName.
       responses:
         '200': { description: Customers list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
+
+  /oauth/status:
+    get:
+      summary: Connection status (debug)
+      description: Returns whether a QuickBooks company is connected and the current realm information.
+      operationId: oauthStatus
+      security: [] # public status endpoint
+      responses:
+        '200':
+          description: Current connection status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionStatus'
 
 # Note for ChatGPT OAuth setup (not part of the spec):
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
