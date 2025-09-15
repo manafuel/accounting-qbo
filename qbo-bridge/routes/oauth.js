@@ -75,10 +75,10 @@ router.get('/callback', async (req, res, next) => {
 
 // Connection status helper
 router.get('/status', (req, res) => {
-  const row = getTokens(env.GPT_USER_ID);
+  const row = getTokens(env.GPT_USER_ID) || getLatestTokens();
   if (!row) return res.json({ connected: false });
   const now = Math.floor(Date.now() / 1000);
-  res.json({ connected: true, realmId: row.realmId, expires: row.expires, expiresInSec: row.expires - now });
+  res.json({ connected: true, realmId: row.realmId, userId: row.userId, expires: row.expires, expiresInSec: row.expires - now });
 });
 
 export default router;

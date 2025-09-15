@@ -1,5 +1,5 @@
 import { env } from './env.js';
-import { saveTokens, getTokens, updateTokens } from './db.js';
+import { saveTokens, getTokens, updateTokens, getLatestTokens } from './db.js';
 import { safeFetch } from './utils.js';
 
 const AUTH_URL = 'https://appcenter.intuit.com/connect/oauth2';
@@ -73,7 +73,7 @@ export async function refreshAccessToken(refreshToken) {
  */
 export async function getAccessToken(realmId) {
   const userId = env.GPT_USER_ID;
-  const row = getTokens(userId);
+  const row = getTokens(userId) || getLatestTokens();
   if (!row || !row.access || !row.refresh) {
     const e = new Error('Not connected to QuickBooks. Run /oauth/start.');
     // @ts-ignore
@@ -120,4 +120,3 @@ export function persistInitialTokens(t) {
     updatedAt: new Date().toISOString(),
   });
 }
-

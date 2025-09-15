@@ -2,7 +2,7 @@ import express from 'express';
 import { qboQuery } from '../lib/qbo.js';
 import { z } from 'zod';
 import { env } from '../lib/env.js';
-import { getTokens } from '../lib/db.js';
+import { getTokens, getLatestTokens } from '../lib/db.js';
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ const qpSchema = z.object({ realmId: z.string().min(1).optional(), q: z.string()
 router.get('/', async (req, res, next) => {
   try {
     const parsed = qpSchema.parse({ realmId: req.query.realmId, q: req.query.q });
-    const row = getTokens(env.GPT_USER_ID);
+    const row = getTokens(env.GPT_USER_ID) || getLatestTokens();
     const realmId = (row?.realmId) || parsed.realmId;
     if (!realmId) {
       const err = new Error('realmId is required and no connected realm was found');

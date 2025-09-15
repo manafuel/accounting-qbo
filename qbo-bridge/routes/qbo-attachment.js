@@ -3,7 +3,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { uploadAttachment } from '../lib/qbo.js';
 import { env } from '../lib/env.js';
-import { getTokens } from '../lib/db.js';
+import { getTokens, getLatestTokens } from '../lib/db.js';
 
 const router = express.Router();
 
@@ -27,7 +27,7 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       throw err;
     }
     const parsed = formSchema.parse(req.body);
-    const row = getTokens(env.GPT_USER_ID);
+    const row = getTokens(env.GPT_USER_ID) || getLatestTokens();
     const realmId = (row?.realmId) || parsed.realmId;
     if (!realmId) {
       const e = new Error('realmId is required and no connected realm was found');

@@ -43,6 +43,7 @@ const upsertStmt = db.prepare(
 );
 
 const selectStmt = db.prepare('SELECT * FROM tokens WHERE userId = ?');
+const selectLatestStmt = db.prepare('SELECT * FROM tokens ORDER BY datetime(updatedAt) DESC LIMIT 1');
 const updateStmt = db.prepare(
   `UPDATE tokens SET realmId=@realmId, access=@access, refresh=@refresh, expires=@expires, updatedAt=@updatedAt
    WHERE userId=@userId`
@@ -73,6 +74,15 @@ export function getTokens(userId) {
  */
 export function updateTokens(row) {
   updateStmt.run({ ...row, updatedAt: new Date().toISOString() });
+}
+
+/**
+ * Retrieve the most recently updated token row.
+ * Useful for single-tenant deployments when GPT_USER_ID changed.
+ * @returns {TokensRow | undefined}
+ */
+export function getLatestTokens() {
+  return selectLatestStmt.get();
 }
 
 /**
