@@ -2,7 +2,7 @@ import express from 'express';
 import { buildAuthUrl, exchangeCodeForTokens, persistInitialTokens } from '../lib/oauth.js';
 import { buildState, verifyState } from '../lib/utils.js';
 import { env } from '../lib/env.js';
-import { getTokens } from '../lib/db.js';
+import { getTokens, getLatestTokens } from '../lib/db.js';
 
 const router = express.Router();
 
