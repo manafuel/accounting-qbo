@@ -5,7 +5,7 @@
   "type": "module",
   "main": "server.js",
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   },
   "scripts": {
     "start": "node server.js",
@@ -23,4 +23,3 @@
     "zod": "^3.23.8"
   }
 }
-
