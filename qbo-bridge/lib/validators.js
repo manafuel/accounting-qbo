@@ -10,6 +10,7 @@ export const purchaseLineSchema = z.object({
   amount: z.number().positive(),
   description: z.string().optional(),
   expenseAccountRef: z.object({ value: z.string() }),
+  expenseAccountName: z.string().optional(),
   customerRef: z.object({ value: z.string() }).optional(),
   classRef: z.object({ value: z.string() }).optional(),
   taxCodeRef: z.object({ value: z.string() }).optional(),

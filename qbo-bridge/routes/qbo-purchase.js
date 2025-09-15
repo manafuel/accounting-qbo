@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { purchaseSchema } from '../lib/validators.js';
-import { qboQuery, createPurchase, getAccountById, upsertVendorByName } from '../lib/qbo.js';
+import { qboQuery, createPurchase, getAccountById, upsertVendorByName, upsertAccountByName } from '../lib/qbo.js';
 import { env } from '../lib/env.js';
 import { getTokens, getLatestTokens } from '../lib/db.js';
 
@@ -63,6 +63,20 @@ router.post('/', async (req, res, next) => {
       // @ts-ignore
       e.status = 400;
       throw e;
+    }
+
+    // If any line uses expenseAccountName, upsert and replace with expenseAccountRef
+    for (const line of parsed.lines) {
+      if (!line.expenseAccountRef && line.expenseAccountName) {
+        const a = await upsertAccountByName(realmId, { name: line.expenseAccountName, type: 'Expense', detailType: 'Supplies' });
+        if (!a?.id) {
+          const e = new Error(`Failed to upsert expense account '${line.expenseAccountName}'`);
+          // @ts-ignore
+          e.status = 400;
+          throw e;
+        }
+        line.expenseAccountRef = { value: String(a.id) };
+      }
     }
 
     // Duplicate guard: check for existing purchase by date, total, and vendor

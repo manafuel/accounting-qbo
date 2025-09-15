@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.3.0
+  version: 0.3.1
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -94,6 +94,9 @@ paths:
                         type: object
                         properties: { value: { type: string } }
                         required: [value]
+                      expenseAccountName:
+                        type: string
+                        description: If provided (and expenseAccountRef omitted), the API will upsert an Expense account (detail: Supplies) and use it.
                       customerRef:
                         type: object
                         properties: { value: { type: string } }
@@ -244,6 +247,43 @@ paths:
                     properties:
                       Id: { type: string }
                       DisplayName: { type: string }
+
+  /qbo/account:
+    post:
+      summary: Upsert an account by Name (defaults to Expense/Supplies)
+      operationId: upsertAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
+                name: { type: string }
+                type: { type: string, description: Default Expense }
+                detailType: { type: string, description: Default Supplies }
+                parentRef:
+                  type: object
+                  properties:
+                    value: { type: string }
+              required: [name]
+      responses:
+        '200':
+          description: Account upsert response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Account:
+                    type: object
+                    properties:
+                      Id: { type: string }
+                      Name: { type: string }
+                      AccountType: { type: string }
 
 # Note for ChatGPT OAuth setup (not part of the spec):
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2

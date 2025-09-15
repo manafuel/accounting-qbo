@@ -164,3 +164,59 @@ export async function upsertVendorByName(realmId, v) {
   const vend = created?.Vendor || created;
   return { id: vend?.Id, displayName: vend?.DisplayName, raw: vend };
 }
+
+/**
+ * Find account by exact Name.
+ * @param {string} realmId
+ * @param {string} name
+ */
+export async function findAccountByName(realmId, name) {
+  const q = `SELECT Id, Name, AccountType FROM Account WHERE Name = '${String(name).replace(/'/g, "''")}'`;
+  const res = await qboQuery(realmId, q);
+  const rows = res?.QueryResponse?.Account || [];
+  return Array.isArray(rows) && rows.length ? rows[0] : undefined;
+}
+
+/**
+ * Create an account. Defaults to Expense/Supplies for expense categories.
+ * @param {string} realmId
+ * @param {{ name: string, type?: string, detailType?: string, parentRef?: { value: string } }} a
+ */
+export async function createAccount(realmId, a) {
+  const token = await getAccessToken(realmId);
+  const u = new URL(`${QBO_BASE}/${encodeURIComponent(realmId)}/account`);
+  u.searchParams.set('minorversion', MINOR_VERSION);
+  const body = {
+    Account: {
+      Name: a.name,
+      AccountType: a.type || 'Expense',
+      AccountSubType: a.detailType || 'Supplies',
+      ParentRef: a.parentRef || undefined,
+    },
+  };
+  const res = await safeFetch(u.toString(), {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+/**
+ * Upsert account by Name. Returns { id, name, accountType }.
+ * @param {string} realmId
+ * @param {{ name: string, type?: string, detailType?: string, parentRef?: { value: string } }} a
+ */
+export async function upsertAccountByName(realmId, a) {
+  const existing = await findAccountByName(realmId, a.name);
+  if (existing) {
+    return { id: existing.Id, name: existing.Name, accountType: existing.AccountType, raw: existing };
+  }
+  const created = await createAccount(realmId, a);
+  const acc = created?.Account || created;
+  return { id: acc?.Id, name: acc?.Name, accountType: acc?.AccountType, raw: acc };
+}
