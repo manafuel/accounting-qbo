@@ -2,20 +2,20 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.2.1
+  version: 0.2.2
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
-  # First URL is a concrete example for GPT builder copy/paste.
   - url: https://accounting-qbo.onrender.com
-  # Keep env-based URL for other tooling.
-  - url: ${APP_BASE_URL}
 components:
   securitySchemes:
     actionApiKey:
       type: apiKey
       in: header
       name: X-Api-Key
-  schemas: {}
+  schemas:
+    QboResponse:
+      type: object
+      additionalProperties: true
 security:
   - actionApiKey: []
 paths:
@@ -37,7 +37,8 @@ paths:
           description: QBO query response
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                $ref: '#/components/schemas/QboResponse'
   /qbo/purchase:
     post:
       summary: Create a Purchase transaction
@@ -89,7 +90,8 @@ paths:
           description: QBO create purchase response
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                $ref: '#/components/schemas/QboResponse'
   /qbo/attachment:
     post:
       summary: Upload an attachment and link to a Purchase
@@ -113,7 +115,8 @@ paths:
           description: QBO upload response
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                $ref: '#/components/schemas/QboResponse'
   /lookups/vendors:
     get:
       summary: List vendors (optionally filtered by name)
@@ -128,7 +131,7 @@ paths:
           required: false
           schema: { type: string }
       responses:
-        '200': { description: Vendors list, content: { application/json: { schema: { type: object } } } }
+        '200': { description: Vendors list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
   /lookups/accounts:
     get:
       summary: List accounts (optionally filtered by name)
@@ -143,7 +146,7 @@ paths:
           required: false
           schema: { type: string }
       responses:
-        '200': { description: Accounts list, content: { application/json: { schema: { type: object } } } }
+        '200': { description: Accounts list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
   /lookups/customers:
     get:
       summary: List customers (optionally filtered by name)
@@ -158,7 +161,7 @@ paths:
           required: false
           schema: { type: string }
       responses:
-        '200': { description: Customers list, content: { application/json: { schema: { type: object } } } }
+        '200': { description: Customers list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
 
 # Note for ChatGPT OAuth setup (not part of the spec):
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
