@@ -2,10 +2,18 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.1.0
+  version: 0.2.0
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: ${APP_BASE_URL}
+components:
+  securitySchemes:
+    actionApiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+security:
+  - actionApiKey: []
 paths:
   /qbo/query:
     get:
@@ -146,4 +154,3 @@ paths:
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
 # Token URL: https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer
 # Scopes: com.intuit.quickbooks.accounting
-

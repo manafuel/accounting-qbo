@@ -16,6 +16,7 @@ import qboPurchaseRouter from './routes/qbo-purchase.js';
 import qboAttachmentRouter from './routes/qbo-attachment.js';
 import lookupsRouter from './routes/lookups.js';
 import siteRouter from './routes/site.js';
+import { requireActionKey } from './lib/auth.js';
 
 const app = express();
 
@@ -62,6 +63,9 @@ app.use(
 // Mount routes
 app.use('/healthz', healthRouter);
 app.use('/oauth', oauthRouter);
+// Protect GPT-facing endpoints with API key
+app.use('/qbo', requireActionKey);
+app.use('/lookups', requireActionKey);
 app.use('/qbo/query', qboQueryRouter);
 app.use('/qbo/purchase', qboPurchaseRouter);
 app.use('/qbo/attachment', qboAttachmentRouter);

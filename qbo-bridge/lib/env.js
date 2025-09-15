@@ -11,6 +11,8 @@
  * @property {string} SESSION_SECRET
  * @property {string} GPT_USER_ID
  * @property {string|undefined} ALLOWED_ORIGINS
+ * @property {string|undefined} ACTION_API_KEY
+ * @property {string|undefined} SETUP_TOKEN
  */
 
 const required = [
@@ -39,5 +41,6 @@ export const env = {
   SESSION_SECRET: process.env.SESSION_SECRET || 'change-me',
   GPT_USER_ID: process.env.GPT_USER_ID || 'default',
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+  ACTION_API_KEY: process.env.ACTION_API_KEY,
+  SETUP_TOKEN: process.env.SETUP_TOKEN,
 };
-

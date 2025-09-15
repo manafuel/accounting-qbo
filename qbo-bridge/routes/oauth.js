@@ -1,11 +1,17 @@
 import express from 'express';
 import { buildAuthUrl, exchangeCodeForTokens, persistInitialTokens } from '../lib/oauth.js';
 import { buildState, verifyState } from '../lib/utils.js';
+import { env } from '../lib/env.js';
 
 const router = express.Router();
 
 // GET /oauth/start -> redirect to Intuit auth
 router.get('/start', (req, res) => {
+  // Optional setup guard so strangers can't trigger OAuth
+  if (env.SETUP_TOKEN) {
+    const t = req.query.setup_token?.toString();
+    if (t !== env.SETUP_TOKEN) return res.status(403).type('text/plain').send('Forbidden');
+  }
   const userId = req.query.userId?.toString() || undefined;
   const state = buildState(userId || 'default');
   const url = buildAuthUrl(state);
@@ -65,4 +71,3 @@ router.get('/callback', async (req, res, next) => {
 });
 
 export default router;
-

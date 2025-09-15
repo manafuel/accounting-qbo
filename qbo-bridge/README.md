@@ -40,6 +40,8 @@ Environment Variables
 - `SESSION_SECRET` (random string)
 - `GPT_USER_ID` (default `default`)
 - `ALLOWED_ORIGINS` (optional CSV for CORS; e.g., `https://chatgpt.com,https://chat.openai.com`)
+ - `ACTION_API_KEY` (required to restrict access; Custom GPT sends this)
+ - `SETUP_TOKEN` (optional; required to open `/oauth/start?setup_token=...`)
 
 Database
 - SQLite file `tokens.db` using better-sqlite3.
@@ -67,7 +69,7 @@ Endpoints
  - `GET /disconnect` (shows confirm) and `POST /disconnect` (deletes stored tokens)
 
 OpenAPI (for GPT Actions)
-- Import `openapi.yaml` into your Custom GPT.
+- Import `openapi.yaml` into your Custom GPT. It declares an API key header security scheme (`X-Api-Key`). Set its value to your `ACTION_API_KEY` in the GPT builder so all calls include it.
 - OAuth settings to use in ChatGPT (commented at end of the file):
   - Authorization URL: `https://appcenter.intuit.com/connect/oauth2`
   - Token URL: `https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer`
@@ -96,6 +98,10 @@ Go Live checklist (Intuit)
   - Disconnect URL: `https://<service>/disconnect`
   - EULA URL: `https://<service>/legal/terms`
   - Privacy Policy URL: `https://<service>/legal/privacy`
+
+Hardening (restrict who can call the bridge)
+- Set `ACTION_API_KEY` to a long random string; GPT Actions will send it via the `X-Api-Key` header per `openapi.yaml`.
+- Optionally set `SETUP_TOKEN`. Then use `https://<service>/oauth/start?setup_token=<token>` when connecting QBO so strangers cannot.
 
 Connect Flow
 1) Go to `${APP_BASE_URL}/oauth/start` and complete Intuit connect.
