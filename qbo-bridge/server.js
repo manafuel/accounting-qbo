@@ -15,6 +15,7 @@ import qboQueryRouter from './routes/qbo-query.js';
 import qboPurchaseRouter from './routes/qbo-purchase.js';
 import qboAttachmentRouter from './routes/qbo-attachment.js';
 import lookupsRouter from './routes/lookups.js';
+import qboVendorRouter from './routes/qbo-vendor.js';
 import siteRouter from './routes/site.js';
 import { requireActionKey } from './lib/auth.js';
 
@@ -69,6 +70,7 @@ app.use('/lookups', requireActionKey);
 app.use('/qbo/query', qboQueryRouter);
 app.use('/qbo/purchase', qboPurchaseRouter);
 app.use('/qbo/attachment', qboAttachmentRouter);
+app.use('/qbo/vendor', qboVendorRouter);
 app.use('/lookups', lookupsRouter);
 app.use('/', siteRouter);
 

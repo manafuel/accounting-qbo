@@ -98,3 +98,69 @@ export async function uploadAttachment(realmId, metadataJson, fileBuffer, fileNa
   return res.json();
 }
 
+/**
+ * Fetch account by Id and return minimal info (Id, Name, AccountType).
+ * @param {string} realmId
+ * @param {string} id
+ */
+export async function getAccountById(realmId, id) {
+  const q = `SELECT Id, Name, AccountType FROM Account WHERE Id = '${String(id).replace(/'/g, "''")}'`;
+  const res = await qboQuery(realmId, q);
+  const rows = res?.QueryResponse?.Account || [];
+  return Array.isArray(rows) && rows.length ? rows[0] : undefined;
+}
+
+/**
+ * Find vendor by exact DisplayName.
+ * @param {string} realmId
+ * @param {string} name
+ */
+export async function findVendorByName(realmId, name) {
+  const q = `SELECT Id, DisplayName FROM Vendor WHERE DisplayName = '${String(name).replace(/'/g, "''")}'`;
+  const res = await qboQuery(realmId, q);
+  const rows = res?.QueryResponse?.Vendor || [];
+  return Array.isArray(rows) && rows.length ? rows[0] : undefined;
+}
+
+/**
+ * Create a vendor with minimal fields. Returns the created vendor.
+ * @param {string} realmId
+ * @param {{ displayName: string, email?: string, phone?: string, billAddr?: any }} v
+ */
+export async function createVendor(realmId, v) {
+  const token = await getAccessToken(realmId);
+  const u = new URL(`${QBO_BASE}/${encodeURIComponent(realmId)}/vendor`);
+  u.searchParams.set('minorversion', MINOR_VERSION);
+  const body = {
+    Vendor: {
+      DisplayName: v.displayName,
+      CompanyName: v.displayName,
+      PrimaryEmailAddr: v.email ? { Address: v.email } : undefined,
+      PrimaryPhone: v.phone ? { FreeFormNumber: v.phone } : undefined,
+      BillAddr: v.billAddr || undefined,
+    },
+  };
+  const res = await safeFetch(u.toString(), {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+/**
+ * Upsert vendor by DisplayName; returns { id, displayName }.
+ * @param {string} realmId
+ * @param {{ displayName: string, email?: string, phone?: string, billAddr?: any }} v
+ */
+export async function upsertVendorByName(realmId, v) {
+  const existing = await findVendorByName(realmId, v.displayName);
+  if (existing) return { id: existing.Id, displayName: existing.DisplayName, raw: existing };
+  const created = await createVendor(realmId, v);
+  const vend = created?.Vendor || created;
+  return { id: vend?.Id, displayName: vend?.DisplayName, raw: vend };
+}

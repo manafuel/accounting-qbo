@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.2.5
+  version: 0.3.0
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -77,6 +77,10 @@ paths:
                   type: object
                   properties: { value: { type: string } }
                   required: [value]
+                  description: Provide either vendorRef or vendorName.
+                vendorName:
+                  type: string
+                  description: If set (and vendorRef omitted), the API will upsert the vendor by DisplayName before creating the Purchase.
                 txnDate: { type: string, pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
                 privateNote: { type: string }
                 lines:
@@ -101,7 +105,7 @@ paths:
                         properties: { value: { type: string } }
                       billableStatus: { type: string, enum: [NotBillable, Billable] }
                   minItems: 1
-              required: [paymentType, accountRef, vendorRef, txnDate, lines]
+              required: [paymentType, accountRef, txnDate, lines]
       responses:
         '200':
           description: QBO create purchase response
@@ -201,6 +205,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionStatus'
+
+  /qbo/vendor:
+    post:
+      summary: Upsert a vendor by DisplayName
+      operationId: upsertVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
+                displayName: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                billAddr:
+                  type: object
+                  properties:
+                    Line1: { type: string }
+                    City: { type: string }
+                    CountrySubDivisionCode: { type: string }
+                    PostalCode: { type: string }
+              required: [displayName]
+      responses:
+        '200':
+          description: Vendor upsert response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Vendor:
+                    type: object
+                    properties:
+                      Id: { type: string }
+                      DisplayName: { type: string }
 
 # Note for ChatGPT OAuth setup (not part of the spec):
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
