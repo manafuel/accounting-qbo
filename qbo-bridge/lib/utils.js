@@ -80,9 +80,38 @@ export function notFoundHandler(req, res) {
 export function errorHandler(err, req, res, next) {
   const status = err.status || 500;
   const payload = { error: err.message || 'internal_error' };
-  if (env.NODE_ENV !== 'production' && err.details) {
+
+  // Add a safe, helpful summary for client 4xx errors (e.g., QBO validation faults).
+  if (status >= 400 && status < 500 && err.details) {
+    try {
+      // Intuit typically returns { Fault: { Error: [ { Message, Detail, code, element } ], type } }
+      const d = err.details;
+      const fault = d?.Fault || d?.fault || undefined;
+      if (fault) {
+        const errors = Array.isArray(fault.Error) ? fault.Error : [];
+        payload.qboFault = {
+          type: fault.type,
+          errors: errors.map(e => ({
+            code: e.code,
+            message: e.Message,
+            detail: e.Detail,
+            element: e.element,
+          })),
+        };
+
+        // Friendly hints for common purchase creation issues
+        if (req?.path?.startsWith('/qbo/purchase')) {
+          payload.hint = 'For Purchase: AccountRef must be a Bank or CreditCard account for the chosen paymentType; VendorRef and all Line expenseAccountRef IDs must exist; omit TaxCodeRef unless configured.';
+        }
+      } else if (typeof d === 'object') {
+        // Fallback minimal details without leaking sensitive data
+        const msg = d.message || d.error || d.summary || undefined;
+        if (msg) payload.reason = String(msg);
+      }
+    } catch {}
+  } else if (env.NODE_ENV !== 'production' && err.details) {
+    // In non-production, include raw details for easier debugging
     payload.details = err.details;
   }
   res.status(status).json(payload);
 }
-
