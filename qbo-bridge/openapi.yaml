@@ -1,8 +1,8 @@
-# OpenAPI 3.1 spec for qbo-bridge
-openapi: 3.1.0
+# OpenAPI spec for qbo-bridge
+openapi: 3.0.3
 info:
   title: qbo-bridge
-  version: 0.3.1
+  version: 0.3.2
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -23,12 +23,23 @@ components:
     ConnectionStatus:
       type: object
       properties:
-        connected: { type: boolean }
-        realmId: { type: string, nullable: true }
-        userId: { type: string, nullable: true }
-        expires: { type: integer, nullable: true, description: Epoch seconds }
-        expiresInSec: { type: integer, nullable: true }
-      required: [connected]
+        connected:
+          type: boolean
+        realmId:
+          type: string
+          nullable: true
+        userId:
+          type: string
+          nullable: true
+        expires:
+          type: integer
+          nullable: true
+          description: Epoch seconds
+        expiresInSec:
+          type: integer
+          nullable: true
+      required:
+        - connected
 security:
   - actionApiKey: []
   - bearerAuth: []
@@ -41,12 +52,14 @@ paths:
         - in: query
           name: realmId
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional; defaults to the connected company.
         - in: query
           name: q
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
         '200':
           description: QBO query response
@@ -54,6 +67,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+
   /qbo/purchase:
     post:
       summary: Create a Purchase transaction
@@ -68,47 +82,75 @@ paths:
                 realmId:
                   type: string
                   description: Optional; defaults to the connected company.
-                paymentType: { type: string, enum: [Cash, CreditCard] }
+                paymentType:
+                  type: string
+                  enum: [Cash, CreditCard]
                 accountRef:
                   type: object
-                  properties: { value: { type: string } }
-                  required: [value]
+                  properties:
+                    value:
+                      type: string
+                  required:
+                    - value
                 vendorRef:
                   type: object
-                  properties: { value: { type: string } }
-                  required: [value]
+                  properties:
+                    value:
+                      type: string
+                  required:
+                    - value
                   description: Provide either vendorRef or vendorName.
                 vendorName:
                   type: string
-                  description: If set (and vendorRef omitted), the API will upsert the vendor by DisplayName before creating the Purchase.
-                txnDate: { type: string, pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
-                privateNote: { type: string }
+                  description: If set (and vendorRef omitted), the API upserts the vendor by DisplayName before creating the Purchase.
+                txnDate:
+                  type: string
+                  pattern: '^\d{4}-\d{2}-\d{2}$'
+                privateNote:
+                  type: string
                 lines:
                   type: array
                   items:
                     type: object
                     properties:
-                      amount: { type: number }
-                      description: { type: string }
+                      amount:
+                        type: number
+                      description:
+                        type: string
                       expenseAccountRef:
                         type: object
-                        properties: { value: { type: string } }
-                        required: [value]
+                        properties:
+                          value:
+                            type: string
+                        required:
+                          - value
                       expenseAccountName:
                         type: string
-                        description: If provided (and expenseAccountRef omitted), the API will upsert an Expense account (detail: Supplies) and use it.
+                        description: If provided (and expenseAccountRef omitted), the API upserts an Expense account (detail Supplies) and uses it.
                       customerRef:
                         type: object
-                        properties: { value: { type: string } }
+                        properties:
+                          value:
+                            type: string
                       classRef:
                         type: object
-                        properties: { value: { type: string } }
+                        properties:
+                          value:
+                            type: string
                       taxCodeRef:
                         type: object
-                        properties: { value: { type: string } }
-                      billableStatus: { type: string, enum: [NotBillable, Billable] }
+                        properties:
+                          value:
+                            type: string
+                      billableStatus:
+                        type: string
+                        enum: [NotBillable, Billable]
                   minItems: 1
-              required: [paymentType, accountRef, txnDate, lines]
+              required:
+                - paymentType
+                - accountRef
+                - txnDate
+                - lines
       responses:
         '200':
           description: QBO create purchase response
@@ -116,6 +158,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+
   /qbo/attachment:
     post:
       summary: Upload an attachment and link to a Purchase
@@ -130,12 +173,16 @@ paths:
                 realmId:
                   type: string
                   description: Optional; defaults to the connected company.
-                txnId: { type: string }
-                note: { type: string }
+                txnId:
+                  type: string
+                note:
+                  type: string
                 file:
                   type: string
                   format: binary
-              required: [txnId, file]
+              required:
+                - txnId
+                - file
       responses:
         '200':
           description: QBO upload response
@@ -143,6 +190,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+
   /lookups/vendors:
     get:
       summary: List vendors (optionally filtered by name)
@@ -151,15 +199,23 @@ paths:
         - in: query
           name: realmId
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional filter; matches anywhere in DisplayName.
       responses:
-        '200': { description: Vendors list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
+        '200':
+          description: Vendors list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QboResponse'
+
   /lookups/accounts:
     get:
       summary: List accounts (optionally filtered by name)
@@ -168,15 +224,23 @@ paths:
         - in: query
           name: realmId
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional filter; matches anywhere in Name.
       responses:
-        '200': { description: Accounts list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
+        '200':
+          description: Accounts list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QboResponse'
+
   /lookups/customers:
     get:
       summary: List customers (optionally filtered by name)
@@ -185,22 +249,29 @@ paths:
         - in: query
           name: realmId
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
-          schema: { type: string }
+          schema:
+            type: string
           description: Optional filter; matches anywhere in DisplayName.
       responses:
-        '200': { description: Customers list, content: { application/json: { schema: { $ref: '#/components/schemas/QboResponse' } } } }
+        '200':
+          description: Customers list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QboResponse'
 
   /oauth/status:
     get:
       summary: Connection status (debug)
       description: Returns whether a QuickBooks company is connected and the current realm information.
       operationId: oauthStatus
-      security: [] # public status endpoint
+      security: []
       responses:
         '200':
           description: Current connection status
@@ -223,17 +294,26 @@ paths:
                 realmId:
                   type: string
                   description: Optional; defaults to the connected company.
-                displayName: { type: string }
-                email: { type: string, format: email }
-                phone: { type: string }
+                displayName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
                 billAddr:
                   type: object
                   properties:
-                    Line1: { type: string }
-                    City: { type: string }
-                    CountrySubDivisionCode: { type: string }
-                    PostalCode: { type: string }
-              required: [displayName]
+                    Line1:
+                      type: string
+                    City:
+                      type: string
+                    CountrySubDivisionCode:
+                      type: string
+                    PostalCode:
+                      type: string
+              required:
+                - displayName
       responses:
         '200':
           description: Vendor upsert response
@@ -245,8 +325,10 @@ paths:
                   Vendor:
                     type: object
                     properties:
-                      Id: { type: string }
-                      DisplayName: { type: string }
+                      Id:
+                        type: string
+                      DisplayName:
+                        type: string
 
   /qbo/account:
     post:
@@ -262,14 +344,21 @@ paths:
                 realmId:
                   type: string
                   description: Optional; defaults to the connected company.
-                name: { type: string }
-                type: { type: string, description: Default Expense }
-                detailType: { type: string, description: Default Supplies }
+                name:
+                  type: string
+                type:
+                  type: string
+                  description: Default Expense
+                detailType:
+                  type: string
+                  description: Default Supplies
                 parentRef:
                   type: object
                   properties:
-                    value: { type: string }
-              required: [name]
+                    value:
+                      type: string
+              required:
+                - name
       responses:
         '200':
           description: Account upsert response
@@ -281,11 +370,15 @@ paths:
                   Account:
                     type: object
                     properties:
-                      Id: { type: string }
-                      Name: { type: string }
-                      AccountType: { type: string }
+                      Id:
+                        type: string
+                      Name:
+                        type: string
+                      AccountType:
+                        type: string
 
 # Note for ChatGPT OAuth setup (not part of the spec):
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
 # Token URL: https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer
 # Scopes: com.intuit.quickbooks.accounting
+
