@@ -62,6 +62,9 @@ Endpoints
 - `POST /qbo/purchase` → creates a Purchase with validation and duplicate guard
 - `POST /qbo/attachment` (multipart) → `realmId`, `txnId`, `note`, `file` (<= 20 MB)
 - `GET /lookups/vendors|accounts|customers?realmId=...&name=...` → convenience lookups
+ - `GET /launch` → simple launch page with a Connect button
+ - `GET /legal/terms` and `GET /legal/privacy` → minimal public pages for Intuit review
+ - `GET /disconnect` (shows confirm) and `POST /disconnect` (deletes stored tokens)
 
 OpenAPI (for GPT Actions)
 - Import `openapi.yaml` into your Custom GPT.
@@ -84,6 +87,16 @@ Render Deploy Guide
 4) Start command: `npm start`
 5) Add a Persistent Disk (1GB) mounted at `/opt/render/project/src/` so `tokens.db` persists between deploys.
 
+Go Live checklist (Intuit)
+- Keys & OAuth → Redirect URIs: add `https://<service>/oauth/callback` (Development and Production).
+- Scopes: enable `com.intuit.quickbooks.accounting`.
+- App details:
+  - Host domain: `https://<service>`
+  - Launch URL: `https://<service>/launch`
+  - Disconnect URL: `https://<service>/disconnect`
+  - EULA URL: `https://<service>/legal/terms`
+  - Privacy Policy URL: `https://<service>/legal/privacy`
+
 Connect Flow
 1) Go to `${APP_BASE_URL}/oauth/start` and complete Intuit connect.
 2) On success you’ll see a “QuickBooks Connected” page.
@@ -104,4 +117,3 @@ Notes
 - Security: secrets are never logged; Authorization headers are redacted.
 - CORS: set `ALLOWED_ORIGINS` if you need browser-based uploads; GPT Actions usually call server-to-server.
 - Swapping to Postgres: replace the `lib/db.js` functions (`saveTokens`, `getTokens`, `updateTokens`) with Postgres queries; keep the same shape.
-

@@ -15,6 +15,7 @@ import qboQueryRouter from './routes/qbo-query.js';
 import qboPurchaseRouter from './routes/qbo-purchase.js';
 import qboAttachmentRouter from './routes/qbo-attachment.js';
 import lookupsRouter from './routes/lookups.js';
+import siteRouter from './routes/site.js';
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/qbo/query', qboQueryRouter);
 app.use('/qbo/purchase', qboPurchaseRouter);
 app.use('/qbo/attachment', qboAttachmentRouter);
 app.use('/lookups', lookupsRouter);
+app.use('/', siteRouter);
 
 // 404 and errors
 app.use(notFoundHandler);
@@ -74,4 +76,3 @@ const port = env.PORT;
 app.listen(port, () => {
   logger.info({ port, baseUrl: env.APP_BASE_URL }, 'qbo-bridge listening');
 });
-

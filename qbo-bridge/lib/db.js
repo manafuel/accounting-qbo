@@ -47,6 +47,7 @@ const updateStmt = db.prepare(
   `UPDATE tokens SET realmId=@realmId, access=@access, refresh=@refresh, expires=@expires, updatedAt=@updatedAt
    WHERE userId=@userId`
 );
+const deleteStmt = db.prepare('DELETE FROM tokens WHERE userId = ?');
 
 /**
  * Save new tokens for a user.
@@ -74,3 +75,10 @@ export function updateTokens(row) {
   updateStmt.run({ ...row, updatedAt: new Date().toISOString() });
 }
 
+/**
+ * Delete tokens for a user.
+ * @param {string} userId
+ */
+export function deleteTokens(userId) {
+  deleteStmt.run(userId);
+}
