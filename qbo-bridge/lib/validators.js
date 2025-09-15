@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
+// realmId is optional in requests; server falls back to the connected realm.
 export const queryParamsSchema = z.object({
-  realmId: z.string().min(1),
+  realmId: z.string().min(1).optional(),
   q: z.string().min(1),
 });
 
@@ -16,7 +17,7 @@ export const purchaseLineSchema = z.object({
 });
 
 export const purchaseSchema = z.object({
-  realmId: z.string().min(1),
+  realmId: z.string().min(1).optional(),
   paymentType: z.enum(['Cash', 'CreditCard']),
   accountRef: z.object({ value: z.string() }),
   vendorRef: z.object({ value: z.string() }),
@@ -28,4 +29,3 @@ export const purchaseSchema = z.object({
 /**
  * @typedef {z.infer<typeof purchaseSchema>} PurchaseInput
  */
-

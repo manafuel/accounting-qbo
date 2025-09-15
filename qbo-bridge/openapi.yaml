@@ -26,8 +26,9 @@ paths:
       parameters:
         - in: query
           name: realmId
-          required: true
+          required: false
           schema: { type: string }
+          description: Optional; defaults to the connected company.
         - in: query
           name: q
           required: true
@@ -50,7 +51,9 @@ paths:
             schema:
               type: object
               properties:
-                realmId: { type: string }
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
                 paymentType: { type: string, enum: [Cash, CreditCard] }
                 accountRef:
                   type: object
@@ -84,7 +87,7 @@ paths:
                         properties: { value: { type: string } }
                       billableStatus: { type: string, enum: [NotBillable, Billable] }
                   minItems: 1
-              required: [realmId, paymentType, accountRef, vendorRef, txnDate, lines]
+              required: [paymentType, accountRef, vendorRef, txnDate, lines]
       responses:
         '200':
           description: QBO create purchase response
@@ -103,13 +106,15 @@ paths:
             schema:
               type: object
               properties:
-                realmId: { type: string }
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
                 txnId: { type: string }
                 note: { type: string }
                 file:
                   type: string
                   format: binary
-              required: [realmId, txnId, file]
+              required: [txnId, file]
       responses:
         '200':
           description: QBO upload response

@@ -2,6 +2,8 @@ import express from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { uploadAttachment } from '../lib/qbo.js';
+import { env } from '../lib/env.js';
+import { getTokens } from '../lib/db.js';
 
 const router = express.Router();
 
@@ -11,7 +13,7 @@ const upload = multer({
 });
 
 const formSchema = z.object({
-  realmId: z.string().min(1),
+  realmId: z.string().min(1).optional(),
   txnId: z.string().min(1),
   note: z.string().optional(),
 });
@@ -25,6 +27,14 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       throw err;
     }
     const parsed = formSchema.parse(req.body);
+    const row = getTokens(env.GPT_USER_ID);
+    const realmId = parsed.realmId || row?.realmId;
+    if (!realmId) {
+      const e = new Error('realmId is required and no connected realm was found');
+      // @ts-ignore
+      e.status = 400;
+      throw e;
+    }
     const metadata = {
       AttachableRef: [
         { EntityRef: { type: 'Purchase', value: parsed.txnId } },
@@ -32,7 +42,7 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       Note: parsed.note || undefined,
     };
     const resp = await uploadAttachment(
-      parsed.realmId,
+      realmId,
       JSON.stringify(metadata),
       req.file.buffer,
       req.file.originalname,
@@ -51,4 +61,3 @@ router.post('/', upload.single('file'), async (req, res, next) => {
 });
 
 export default router;
-
