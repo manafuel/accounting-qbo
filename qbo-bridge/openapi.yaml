@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: qbo-bridge
-  version: 0.2.2
+  version: 0.2.3
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -129,8 +129,9 @@ paths:
       parameters:
         - in: query
           name: realmId
-          required: true
+          required: false
           schema: { type: string }
+          description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
@@ -144,8 +145,9 @@ paths:
       parameters:
         - in: query
           name: realmId
-          required: true
+          required: false
           schema: { type: string }
+          description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
@@ -159,8 +161,9 @@ paths:
       parameters:
         - in: query
           name: realmId
-          required: true
+          required: false
           schema: { type: string }
+          description: Optional; defaults to the connected company.
         - in: query
           name: name
           required: false
