@@ -19,7 +19,6 @@ import qboVendorRouter from './routes/qbo-vendor.js';
 import qboAccountRouter from './routes/qbo-account.js';
 import siteRouter from './routes/site.js';
 import workflowRouter from './routes/workflow.js';
-import uploadRouter from './routes/upload.js';
 import { requireActionKey } from './lib/auth.js';
 
 const app = express();
@@ -77,7 +76,6 @@ app.use('/qbo/vendor', qboVendorRouter);
 app.use('/qbo/account', qboAccountRouter);
 app.use('/lookups', lookupsRouter);
 app.use('/workflow', requireActionKey, workflowRouter);
-app.use('/upload', requireActionKey, uploadRouter);
 app.use('/', siteRouter);
 
 // 404 and errors

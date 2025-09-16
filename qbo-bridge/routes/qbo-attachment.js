@@ -7,9 +7,10 @@ import { getTokens, getLatestTokens } from '../lib/db.js';
 
 const router = express.Router();
 
+const MAX_UPLOAD = 25 * 1024 * 1024; // 25 MB
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: MAX_UPLOAD },
 });
 
 const formSchema = z.object({
@@ -48,10 +49,12 @@ function base64ToBuffer(s) {
   const m = /^data:([^;]+);base64,(.*)$/i.exec(s || '');
   if (m) {
     const mime = m[1] || 'application/octet-stream';
-    const buf = Buffer.from(m[2], 'base64');
+    const clean = m[2].replace(/\s+/g, '');
+    const buf = Buffer.from(clean, 'base64');
     return { buffer: buf, mime };
   }
-  return { buffer: Buffer.from(String(s || ''), 'base64'), mime: 'application/octet-stream' };
+  const clean = String(s || '').replace(/\s+/g, '');
+  return { buffer: Buffer.from(clean, 'base64'), mime: 'application/octet-stream' };
 }
 
 router.post('/', upload.single('file'), async (req, res, next) => {
@@ -66,6 +69,12 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       const { buffer, mime } = parsed.contentBase64
         ? base64ToBuffer(parsed.contentBase64)
         : await fetchFileToBuffer(parsed.fileUrl);
+      if (buffer.length > MAX_UPLOAD) {
+        const e = new Error(`file exceeds limit (${MAX_UPLOAD} bytes)`);
+        // @ts-ignore
+        e.status = 413;
+        throw e;
+      }
       const metadata = { AttachableRef: [{ EntityRef: { type: 'Purchase', value: parsed.txnId } }], Note: parsed.note || undefined };
       const resp = await uploadAttachment(realmId, JSON.stringify(metadata), buffer, fileName, parsed.mime || mime);
       return res.json(resp);
@@ -84,6 +93,7 @@ router.post('/', upload.single('file'), async (req, res, next) => {
     const realmId = (row?.realmId) || parsed.realmId;
     if (!realmId) { const e = new Error('realmId is required and no connected realm was found'); e.status = 400; throw e; }
     const metadata = { AttachableRef: [{ EntityRef: { type: 'Purchase', value: parsed.txnId } }], Note: parsed.note || undefined };
+    if (req.file.buffer.length > MAX_UPLOAD) { const e = new Error(`file exceeds limit (${MAX_UPLOAD} bytes)`); e.status = 413; throw e; }
     const resp = await uploadAttachment(realmId, JSON.stringify(metadata), req.file.buffer, req.file.originalname, req.file.mimetype);
     res.json(resp);
   } catch (err) {

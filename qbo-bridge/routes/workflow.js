@@ -79,10 +79,12 @@ function base64ToBuffer(s) {
   const m = /^data:([^;]+);base64,(.*)$/i.exec(s || '');
   if (m) {
     const mime = m[1] || 'application/octet-stream';
-    const buf = Buffer.from(m[2], 'base64');
+    const clean = m[2].replace(/\s+/g, '');
+    const buf = Buffer.from(clean, 'base64');
     return { buffer: buf, mime };
   }
-  return { buffer: Buffer.from(String(s || ''), 'base64'), mime: 'application/octet-stream' };
+  const clean = String(s || '').replace(/\s+/g, '');
+  return { buffer: Buffer.from(clean, 'base64'), mime: 'application/octet-stream' };
 }
 
 router.post('/expense-intake', async (req, res, next) => {
@@ -171,6 +173,12 @@ router.post('/expense-intake', async (req, res, next) => {
         const { buffer, mime } = input.receipt.contentBase64
           ? base64ToBuffer(input.receipt.contentBase64)
           : await fetchFileToBuffer(input.receipt.fileUrl);
+        const MAX_UPLOAD = 25 * 1024 * 1024;
+        if (buffer.length > MAX_UPLOAD) {
+          const e = new Error(`file exceeds limit (${MAX_UPLOAD} bytes)`);
+          e.status = 413;
+          throw e;
+        }
         const meta = { AttachableRef: [{ EntityRef: { type: 'Purchase', value: String(matched.Id || matched.id) } }], Note: input.memo || undefined };
         attachment = await uploadAttachment(realmId, JSON.stringify(meta), buffer, fileName, input.receipt.mime || mime);
       } catch (e) {
