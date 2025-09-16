@@ -688,6 +688,9 @@ paths:
                     fileUrl:
                       type: string
                       format: uri
+                    contentBase64:
+                      type: string
+                      description: Base64-encoded file content; supports raw base64 or data URLs (data:mime;base64,...)
                     fileName:
                       type: string
                     mime:

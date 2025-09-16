@@ -24,13 +24,14 @@ const expenseIntakeSchema = z.object({
   receipt: z
     .object({
       fileUrl: z.string().url().optional(),
+      contentBase64: z.string().optional(),
       fileName: z.string().optional(),
       mime: z.string().optional(),
     })
     .optional(),
 });
 
-async function findLikelyPurchase(realmId, { amount, txnDate, vendorId }) {
+async function findLikelyPurchase(realmId, { amount, txnDate, vendorId, fundingAccountId }) {
   const d = new Date(txnDate + 'T00:00:00Z');
   const from = new Date(d);
   const to = new Date(d);
@@ -42,6 +43,7 @@ async function findLikelyPurchase(realmId, { amount, txnDate, vendorId }) {
     `TxnDate <= '${to.toISOString().slice(0, 10)}'`,
   ];
   if (vendorId) clauses.push(`EntityRef = '${String(vendorId).replace(/'/g, "''")}'`);
+  if (fundingAccountId) clauses.push(`AccountRef = '${String(fundingAccountId).replace(/'/g, "''")}'`);
   const where = ` WHERE ${clauses.join(' AND ')}`;
   const q = `SELECT Id, TxnDate, TotalAmt, AccountRef, EntityRef FROM Purchase${where} STARTPOSITION 1 MAXRESULTS 20`;
   const data = await qboQuery(realmId, q);
@@ -66,6 +68,17 @@ async function fetchFileToBuffer(url) {
   const ab = await res.arrayBuffer();
   const contentType = res.headers.get('content-type') || 'application/octet-stream';
   return { buffer: Buffer.from(ab), mime: contentType };
+}
+
+function base64ToBuffer(s) {
+  // Support data URLs (data:mime;base64,....) and raw base64
+  const m = /^data:([^;]+);base64,(.*)$/i.exec(s || '');
+  if (m) {
+    const mime = m[1] || 'application/octet-stream';
+    const buf = Buffer.from(m[2], 'base64');
+    return { buffer: buf, mime };
+  }
+  return { buffer: Buffer.from(String(s || ''), 'base64'), mime: 'application/octet-stream' };
 }
 
 router.post('/expense-intake', async (req, res, next) => {
@@ -111,7 +124,12 @@ router.post('/expense-intake', async (req, res, next) => {
     }
 
     // Try to find an existing purchase to match
-    let matched = await findLikelyPurchase(realmId, { amount: input.amount, txnDate: input.txnDate, vendorId: vendorRef?.value });
+    let matched = await findLikelyPurchase(realmId, {
+      amount: input.amount,
+      txnDate: input.txnDate,
+      vendorId: vendorRef?.value,
+      fundingAccountId: input.funding.accountRef?.value,
+    });
 
     let created;
     if (!matched) {
@@ -143,16 +161,18 @@ router.post('/expense-intake', async (req, res, next) => {
 
     // Attach receipt if provided
     let attachment;
-    if (input.receipt?.fileUrl) {
+    if (input.receipt?.fileUrl || input.receipt?.contentBase64) {
       try {
-        const { buffer, mime } = await fetchFileToBuffer(input.receipt.fileUrl);
         const fileName = input.receipt.fileName || 'receipt';
+        const { buffer, mime } = input.receipt.contentBase64
+          ? base64ToBuffer(input.receipt.contentBase64)
+          : await fetchFileToBuffer(input.receipt.fileUrl);
         const meta = { AttachableRef: [{ EntityRef: { type: 'Purchase', value: String(matched.Id || matched.id) } }], Note: input.memo || undefined };
         attachment = await uploadAttachment(realmId, JSON.stringify(meta), buffer, fileName, input.receipt.mime || mime);
       } catch (e) {
         // Non-fatal; surface suggestion
         e.status = e.status || 400;
-        e.suggestions = Object.assign({}, e.suggestions, { retryWithoutReceipt: true, reason: 'Attachment fetch failed; you can retry with a direct upload or another URL.' });
+        e.suggestions = Object.assign({}, e.suggestions, { retryWithoutReceipt: true, allowContentBase64: true, reason: 'Attachment failed; supply a web-accessible fileUrl or a contentBase64 payload.' });
         throw e;
       }
     }
@@ -172,4 +192,3 @@ router.post('/expense-intake', async (req, res, next) => {
 });
 
 export default router;
-
