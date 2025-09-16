@@ -46,14 +46,12 @@ export async function createPurchase(realmId, payload) {
   }));
 
   const body = {
-    Purchase: {
-      TxnDate: payload.txnDate,
-      PrivateNote: payload.privateNote,
-      PaymentType: payload.paymentType, // Cash or CreditCard
-      AccountRef: payload.accountRef,
-      EntityRef: payload.vendorRef, // Vendor
-      Line: Lines,
-    },
+    TxnDate: payload.txnDate,
+    PrivateNote: payload.privateNote,
+    PaymentType: payload.paymentType, // Cash or CreditCard
+    AccountRef: payload.accountRef,
+    EntityRef: payload.vendorRef, // Vendor
+    Line: Lines,
   };
 
   const u = new URL(`${QBO_BASE}/${encodeURIComponent(realmId)}/purchase`);
@@ -186,12 +184,10 @@ export async function createAccount(realmId, a) {
   const u = new URL(`${QBO_BASE}/${encodeURIComponent(realmId)}/account`);
   u.searchParams.set('minorversion', MINOR_VERSION);
   const body = {
-    Account: {
-      Name: a.name,
-      AccountType: a.type || 'Expense',
-      AccountSubType: a.detailType || 'Supplies',
-      ParentRef: a.parentRef || undefined,
-    },
+    Name: a.name,
+    AccountType: a.type || 'Expense',
+    AccountSubType: a.detailType || 'Supplies',
+    ParentRef: a.parentRef || undefined,
   };
   const res = await safeFetch(u.toString(), {
     method: 'POST',

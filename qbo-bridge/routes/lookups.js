@@ -7,6 +7,12 @@ import { getTokens, getLatestTokens } from '../lib/db.js';
 const router = express.Router();
 
 const baseSchema = z.object({ realmId: z.string().min(1).optional(), name: z.string().optional() });
+const accountsParams = z.object({
+  realmId: z.string().min(1).optional(),
+  name: z.string().optional(),
+  paymentType: z.enum(['Cash', 'CreditCard']).optional(),
+  accountType: z.string().optional(),
+});
 
 router.get('/vendors', async (req, res, next) => {
   try {
@@ -23,12 +29,22 @@ router.get('/vendors', async (req, res, next) => {
 
 router.get('/accounts', async (req, res, next) => {
   try {
-    const { realmId: realmIdParam, name } = baseSchema.parse({ realmId: req.query.realmId, name: req.query.name });
+    const { realmId: realmIdParam, name, paymentType, accountType } = accountsParams.parse({
+      realmId: req.query.realmId,
+      name: req.query.name,
+      paymentType: req.query.paymentType,
+      accountType: req.query.accountType,
+    });
     const row = getTokens(env.GPT_USER_ID) || getLatestTokens();
     const realmId = (row?.realmId) || realmIdParam;
     if (!realmId) { const e = new Error('realmId is required and no connected realm was found'); e.status = 400; throw e; }
-    const filter = name ? ` WHERE Name LIKE '%${name.replace(/'/g, "''")}%'` : '';
-    const q = `SELECT Id, Name, AccountType FROM Account${filter} STARTPOSITION 1 MAXRESULTS 50`;
+    const clauses = [];
+    if (name) clauses.push(`Name LIKE '%${name.replace(/'/g, "''")}%'`);
+    if (accountType) clauses.push(`AccountType = '${accountType.replace(/'/g, "''")}'`);
+    if (paymentType === 'CreditCard') clauses.push(`AccountType = 'Credit Card'`);
+    if (paymentType === 'Cash') clauses.push(`(AccountType = 'Bank' OR AccountType = 'Other Current Asset')`);
+    const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+    const q = `SELECT Id, Name, AccountType FROM Account${where} STARTPOSITION 1 MAXRESULTS 50`;
     const data = await qboQuery(realmId, q);
     res.json(data);
   } catch (err) { if (err instanceof z.ZodError) { err.status = 400; } next(err); }

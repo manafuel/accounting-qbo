@@ -294,6 +294,19 @@ paths:
           schema:
             type: string
           description: Optional filter; matches anywhere in Name.
+        - in: query
+          name: paymentType
+          required: false
+          schema:
+            type: string
+            enum: [Cash, CreditCard]
+          description: If set, filters to funding accounts valid for a Purchase with this paymentType.
+        - in: query
+          name: accountType
+          required: false
+          schema:
+            type: string
+          description: Filter by exact AccountType (e.g., Bank, Credit Card).
       responses:
         '200':
           description: Accounts list

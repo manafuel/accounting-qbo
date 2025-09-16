@@ -106,6 +106,25 @@ export function errorHandler(err, req, res, next) {
         if (req?.path?.startsWith('/qbo/vendor')) {
           payload.hint = 'For Vendor: DisplayName must not contain illegal characters (avoid colons and control characters); BillAddr keys should be Line1, City, CountrySubDivisionCode, PostalCode; email/phone map to PrimaryEmailAddr.Address and PrimaryPhone.FreeFormNumber.';
         }
+
+        // Query-specific smart suggestion: Vendor/Customer use DisplayName, not Name
+        if (req?.path?.startsWith('/qbo/query') && typeof req?.query?.q === 'string') {
+          const q = String(req.query.q);
+          const detailStr = JSON.stringify(payload.qboFault) + (payload.reason || '');
+          const mentionsNameMissing = /Property\s+Name\s+not\s+found/i.test(detailStr) || /Invalid\s+query/i.test(String(errors?.[0]?.message || ''));
+          if (mentionsNameMissing && /\bFROM\s+Vendor\b/i.test(q) && /\bName\b/i.test(q)) {
+            payload.suggestions = Object.assign({}, payload.suggestions, {
+              queryRewrite: q.replace(/\bName\b/gi, 'DisplayName'),
+              reason: 'Vendor uses DisplayName instead of Name',
+            });
+          }
+          if (mentionsNameMissing && /\bFROM\s+Customer\b/i.test(q) && /\bName\b/i.test(q)) {
+            payload.suggestions = Object.assign({}, payload.suggestions, {
+              queryRewrite: (payload.suggestions?.queryRewrite || q).replace(/\bName\b/gi, 'DisplayName'),
+              reason: 'Customer uses DisplayName instead of Name',
+            });
+          }
+        }
       } else if (typeof d === 'object') {
         // Fallback minimal details without leaking sensitive data
         const msg = d.message || d.error || d.summary || undefined;
