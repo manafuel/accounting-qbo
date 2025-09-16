@@ -42,7 +42,7 @@ router.get('/accounts', async (req, res, next) => {
     if (name) clauses.push(`Name LIKE '%${name.replace(/'/g, "''")}%'`);
     if (accountType) clauses.push(`AccountType = '${accountType.replace(/'/g, "''")}'`);
     if (paymentType === 'CreditCard') clauses.push(`AccountType = 'Credit Card'`);
-    if (paymentType === 'Cash') clauses.push(`(AccountType = 'Bank' OR AccountType = 'Other Current Asset')`);
+    if (paymentType === 'Cash') clauses.push(`AccountType IN ('Bank','Other Current Asset')`);
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
     const q = `SELECT Id, Name, AccountType FROM Account${where} STARTPOSITION 1 MAXRESULTS 50`;
     const data = await qboQuery(realmId, q);
