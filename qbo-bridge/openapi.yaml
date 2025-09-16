@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: qbo-bridge
-  version: 0.3.3
+  version: 0.3.4
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -468,19 +468,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-      responses:
-        '200':
-          description: Customers list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QboResponse'
-        '401':
-          description: Missing or invalid API key
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /oauth/status:
     get:
@@ -760,6 +747,12 @@ paths:
                     $ref: '#/components/schemas/QboResponse'
         '400':
           description: Validation error (includes suggestions on fix)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid API key
           content:
             application/json:
               schema:
