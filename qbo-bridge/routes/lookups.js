@@ -61,6 +61,21 @@ router.get('/accounts', async (req, res, next) => {
     const max = limit || 50;
     const q = `SELECT Id, Name, AccountType FROM Account${where} STARTPOSITION ${startPos} MAXRESULTS ${max}`;
     const data = await qboQuery(realmId, q);
+    // Bias ordering for Cash funding to prefer Bank accounts first in the returned page
+    if (paymentType === 'Cash' && data?.QueryResponse?.Account && Array.isArray(data.QueryResponse.Account)) {
+      const rows = data.QueryResponse.Account.slice();
+      rows.sort((a, b) => {
+        const at = String(a.AccountType || '');
+        const bt = String(b.AccountType || '');
+        const rank = (t) => (t === 'Bank' ? 0 : t === 'Other Current Asset' ? 1 : 2);
+        const ra = rank(at);
+        const rb = rank(bt);
+        if (ra !== rb) return ra - rb;
+        // Secondary by Name for stable output
+        return String(a.Name || '').localeCompare(String(b.Name || ''));
+      });
+      data.QueryResponse.Account = rows;
+    }
     res.json(data);
   } catch (err) { if (err instanceof z.ZodError) { err.status = 400; } next(err); }
 });
