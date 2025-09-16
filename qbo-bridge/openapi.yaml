@@ -351,6 +351,13 @@ paths:
           schema:
             type: string
           description: Filter by exact AccountType (e.g., Bank, Credit Card).
+        - in: query
+          name: last4
+          required: false
+          schema:
+            type: string
+            pattern: '^\\d{4}$'
+          description: Filter accounts whose Name ends with these 4 digits (useful for credit card last 4).
       responses:
         '200':
           description: Accounts list

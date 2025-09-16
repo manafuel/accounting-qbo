@@ -17,6 +17,7 @@ const accountsParams = z.object({
   name: z.string().optional(),
   paymentType: z.enum(['Cash', 'CreditCard']).optional(),
   accountType: z.string().optional(),
+  last4: z.string().regex(/^\d{4}$/).optional(),
 });
 
 router.get('/vendors', async (req, res, next) => {
@@ -41,11 +42,12 @@ router.get('/vendors', async (req, res, next) => {
 
 router.get('/accounts', async (req, res, next) => {
   try {
-    const { realmId: realmIdParam, name, paymentType, accountType } = accountsParams.parse({
+    const { realmId: realmIdParam, name, paymentType, accountType, last4 } = accountsParams.parse({
       realmId: req.query.realmId,
       name: req.query.name,
       paymentType: req.query.paymentType,
       accountType: req.query.accountType,
+      last4: req.query.last4,
     });
     const { start, limit } = baseSchema.parse({ start: req.query.start, limit: req.query.limit });
     const row = getTokens(env.GPT_USER_ID) || getLatestTokens();
@@ -54,6 +56,7 @@ router.get('/accounts', async (req, res, next) => {
     const clauses = [];
     if (name) clauses.push(`Name LIKE '%${name.replace(/'/g, "''")}%'`);
     if (accountType) clauses.push(`AccountType = '${accountType.replace(/'/g, "''")}'`);
+    if (last4) clauses.push(`Name LIKE '%${last4.replace(/'/g, "''")}'`);
     if (paymentType === 'CreditCard') clauses.push(`AccountType = 'Credit Card'`);
     if (paymentType === 'Cash') clauses.push(`AccountType IN ('Bank','Other Current Asset')`);
     const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
