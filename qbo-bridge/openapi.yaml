@@ -289,6 +289,149 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /upload/session/start:
+    post:
+      summary: Start a chunked attachment upload session
+      operationId: startUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
+                txnId:
+                  type: string
+                note:
+                  type: string
+                fileName:
+                  type: string
+                mime:
+                  type: string
+                maxSize:
+                  type: integer
+                  description: Max total bytes (default 20MB)
+              required:
+                - txnId
+                - fileName
+      responses:
+        '200':
+          description: Upload session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+        '400':
+          description: Request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/session/append:
+    post:
+      summary: Append a base64 chunk to the upload session
+      operationId: appendUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                chunkBase64:
+                  type: string
+              required:
+                - sessionId
+                - chunkBase64
+      responses:
+        '200':
+          description: Chunk appended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  size:
+                    type: integer
+        '400':
+          description: Request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/session/finish:
+    post:
+      summary: Finalize and upload to QBO
+      operationId: finishUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+              required:
+                - sessionId
+      responses:
+        '200':
+          description: QBO upload response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QboResponse'
+        '400':
+          description: Request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/session/abort:
+    post:
+      summary: Abort and delete the pending upload session
+      operationId: abortUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+              required:
+                - sessionId
+      responses:
+        '200':
+          description: Session aborted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  aborted:
+                    type: boolean
+        '400':
+          description: Request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /lookups/vendors:
     get:
       summary: List vendors (optionally filtered by name)
