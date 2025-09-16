@@ -246,6 +246,29 @@ paths:
               required:
                 - txnId
                 - file
+          application/json:
+            schema:
+              type: object
+              properties:
+                realmId:
+                  type: string
+                  description: Optional; defaults to the connected company.
+                txnId:
+                  type: string
+                note:
+                  type: string
+                fileUrl:
+                  type: string
+                  format: uri
+                contentBase64:
+                  type: string
+                  description: Base64-encoded file content; supports raw base64 or data URLs (data:mime;base64,...)
+                fileName:
+                  type: string
+                mime:
+                  type: string
+              required:
+                - txnId
       responses:
         '200':
           description: QBO upload response
