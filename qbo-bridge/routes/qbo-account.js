@@ -34,9 +34,26 @@ router.post('/', async (req, res, next) => {
     res.json({ Account: { Id: a.id, Name: a.name, AccountType: a.accountType } });
   } catch (err) {
     if (err instanceof z.ZodError) { err.status = 400; err.details = err.flatten(); }
+    // Attach suggestion for common subtype/type mismatch (e.g., *Cogs requires Cost of Goods Sold)
+    try {
+      const d = err.details;
+      const fault = d?.Fault || d?.fault || undefined;
+      const errors = Array.isArray(fault?.Error) ? fault.Error : [];
+      const has2010 = errors.some(e => String(e?.code) === '2010');
+      const desired = req?.body || {};
+      const dt = String(desired.detailType || '').toLowerCase();
+      const t = String(desired.type || '').toLowerCase();
+      if (has2010) {
+        if (dt.includes('cogs') && t !== 'cost of goods sold') {
+          err.suggestions = Object.assign({}, err.suggestions, {
+            type: 'Cost of Goods Sold',
+            reason: 'detailType *Cogs typically requires AccountType "Cost of Goods Sold"',
+          });
+        }
+      }
+    } catch {}
     next(err);
   }
 });
 
 export default router;
-
