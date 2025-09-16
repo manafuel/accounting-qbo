@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: qbo-bridge
-  version: 0.3.2
+  version: 0.3.3
   description: Minimal bridge to QuickBooks Online for GPT Actions
 servers:
   - url: https://accounting-qbo.onrender.com
@@ -40,6 +40,37 @@ components:
           nullable: true
       required:
         - connected
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        hint:
+          type: string
+          nullable: true
+        suggestions:
+          type: object
+          additionalProperties: true
+          nullable: true
+        qboFault:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  detail:
+                    type: string
+                  element:
+                    type: string
 security:
   - actionApiKey: []
   - bearerAuth: []
@@ -158,6 +189,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '400':
+          description: Validation or request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /qbo/attachment:
     post:
@@ -190,6 +233,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '400':
+          description: Validation or request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /lookups/vendors:
     get:
@@ -215,6 +270,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /lookups/accounts:
     get:
@@ -240,6 +301,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /lookups/customers:
     get:
@@ -265,6 +332,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /oauth/status:
     get:
@@ -314,6 +387,22 @@ paths:
                       type: string
               required:
                 - displayName
+            examples:
+              minimal:
+                summary: Minimal vendor
+                value:
+                  displayName: Acme Supplies
+              withContact:
+                summary: With contact and billing address
+                value:
+                  displayName: Green Valley Feed Supply
+                  email: orders@greenvalleyfeed.com
+                  phone: 555-321-9876
+                  billAddr:
+                    Line1: 123 Country Rd
+                    City: Fairview
+                    CountrySubDivisionCode: KY
+                    PostalCode: 40001
       responses:
         '200':
           description: Vendor upsert response
@@ -329,6 +418,40 @@ paths:
                         type: string
                       DisplayName:
                         type: string
+              examples:
+                created:
+                  summary: Vendor created
+                  value:
+                    Vendor:
+                      Id: "35"
+                      DisplayName: Green Valley Feed Supply
+        '400':
+          description: Validation or request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidDisplayName:
+                  summary: Illegal characters in DisplayName
+                  value:
+                    error: HTTP 400 Bad Request
+                    qboFault:
+                      type: ValidationFault
+                      errors:
+                        - code: "2040"
+                          message: Invalid String. The String may contain unsupported or illegal chars
+                          detail: Element contains invalid characters. Bad: Name 12:34
+                          element: DisplayName
+                    suggestions:
+                      displayNameSanitized: "Bad- Name 12-34"
+                      reason: DisplayName contained illegal characters; try sanitized variant.
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /qbo/account:
     post:
@@ -381,4 +504,3 @@ paths:
 # Authorization URL: https://appcenter.intuit.com/connect/oauth2
 # Token URL: https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer
 # Scopes: com.intuit.quickbooks.accounting
-
