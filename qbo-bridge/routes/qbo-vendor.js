@@ -26,6 +26,20 @@ function normalizeBillAddr(addr) {
   return Object.keys(out).length ? out : undefined;
 }
 
+function cleanDisplayName(name) {
+  if (!name) return name;
+  let s = String(name);
+  // Replace smart quotes with ASCII apostrophe
+  s = s.replace(/[\u2018\u2019\u2032]/g, "'");
+  // Replace colons with hyphen
+  s = s.replace(/:/g, '-');
+  // Remove control characters
+  s = s.replace(/[\p{Cc}\p{Cf}]/gu, '');
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
 router.post('/', async (req, res, next) => {
   try {
     const parsed = vendorUpsertSchema.parse(req.body);
@@ -38,7 +52,7 @@ router.post('/', async (req, res, next) => {
       throw e;
     }
     const v = await upsertVendorByName(realmId, {
-      displayName: parsed.displayName,
+      displayName: cleanDisplayName(parsed.displayName),
       email: parsed.email,
       phone: parsed.phone,
       billAddr: normalizeBillAddr(parsed.billAddr),
