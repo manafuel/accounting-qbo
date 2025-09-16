@@ -98,6 +98,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QboResponse'
+        '400':
+          description: Validation or request error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                vendorNameField:
+                  summary: Vendor uses DisplayName instead of Name
+                  value:
+                    error: HTTP 400 Bad Request
+                    qboFault:
+                      type: ValidationFault
+                      errors:
+                        - code: "4001"
+                          message: Invalid query
+                          detail: "QueryValidationError: Property Name not found for Entity Vendor"
+                    suggestions:
+                      queryRewrite: "SELECT Id, DisplayName FROM Vendor STARTPOSITION 1 MAXRESULTS 5"
+                      reason: Vendor uses DisplayName instead of Name
 
   /qbo/purchase:
     post:
