@@ -37,8 +37,12 @@ async function findLikelyPurchase(realmId, { amount, txnDate, vendorId, fundingA
   const to = new Date(d);
   from.setUTCDate(d.getUTCDate() - 3);
   to.setUTCDate(d.getUTCDate() + 3);
+  const amt = Number(amount);
+  const lo = (amt - 0.02).toFixed(2);
+  const hi = (amt + 0.02).toFixed(2);
   const clauses = [
-    `TotalAmt = ${Number(amount).toFixed(2)}`,
+    `TotalAmt >= ${lo}`,
+    `TotalAmt <= ${hi}`,
     `TxnDate >= '${from.toISOString().slice(0, 10)}'`,
     `TxnDate <= '${to.toISOString().slice(0, 10)}'`,
   ];
