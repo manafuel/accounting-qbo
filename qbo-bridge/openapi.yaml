@@ -397,7 +397,7 @@ paths:
                 value:
                   displayName: Green Valley Feed Supply
                   email: orders@greenvalleyfeed.com
-                  phone: 555-321-9876
+                  phone: "555-321-9876"
                   billAddr:
                     Line1: 123 Country Rd
                     City: Fairview
@@ -441,7 +441,7 @@ paths:
                       errors:
                         - code: "2040"
                           message: Invalid String. The String may contain unsupported or illegal chars
-                          detail: Element contains invalid characters. Bad: Name 12:34
+                          detail: "Element contains invalid characters. Bad: Name 12:34"
                           element: DisplayName
                     suggestions:
                       displayNameSanitized: "Bad- Name 12-34"
