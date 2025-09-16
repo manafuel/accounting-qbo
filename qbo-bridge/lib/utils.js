@@ -116,5 +116,11 @@ export function errorHandler(err, req, res, next) {
     // In non-production, include raw details for easier debugging
     payload.details = err.details;
   }
+  // Forward machine-readable suggestions if present (routes can attach them)
+  if (err.suggestions) {
+    try {
+      payload.suggestions = err.suggestions;
+    } catch {}
+  }
   res.status(status).json(payload);
 }

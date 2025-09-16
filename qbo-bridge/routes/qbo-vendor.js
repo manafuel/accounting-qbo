@@ -46,6 +46,27 @@ router.post('/', async (req, res, next) => {
     res.json({ Vendor: { Id: v.id, DisplayName: v.displayName } });
   } catch (err) {
     if (err instanceof z.ZodError) { err.status = 400; err.details = err.flatten(); }
+    // If QBO returns invalid character for DisplayName (code 2040), suggest a sanitized name
+    try {
+      const d = err.details;
+      const fault = d?.Fault || d?.fault || undefined;
+      const errors = Array.isArray(fault?.Error) ? fault.Error : [];
+      const hasInvalidName = errors.some(e => String(e?.code) === '2040' && /DisplayName/i.test(String(e?.element || '') + String(e?.Detail || '') + String(e?.Message || '')));
+      if (hasInvalidName && req?.body?.displayName) {
+        const orig = String(req.body.displayName);
+        const sanitized = orig
+          .replace(/[\p{Cc}\p{Cf}]/gu, '') // remove control chars
+          .replace(/[:]/g, '-') // replace colons with hyphen
+          .replace(/\s+/g, ' ') // collapse whitespace
+          .trim();
+        if (sanitized && sanitized !== orig) {
+          err.suggestions = Object.assign({}, err.suggestions, {
+            displayNameSanitized: sanitized,
+            reason: 'DisplayName contained illegal characters; try sanitized variant.',
+          });
+        }
+      }
+    } catch {}
     next(err);
   }
 });
